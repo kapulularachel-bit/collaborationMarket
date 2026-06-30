@@ -26,6 +26,8 @@ export default function OrdersView({
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ROWS_PER_PAGE = 10;
 
   // Filter orders based on inputs
   const filteredOrders = orders.filter((o) => {
@@ -42,6 +44,12 @@ export default function OrdersView({
 
     return matchesSearch && matchesStatus && matchesPayment;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ROWS_PER_PAGE));
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
+
+  // Reset to page 1 if filters change and current page exceeds total
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   // Render visual progress slider under status
   const renderStatusTracker = (status: OrderStatus) => {
@@ -108,48 +116,23 @@ export default function OrdersView({
 
   // Render product cells with stacked images when there are multiple items
   const renderProductCell = (o: Order) => {
-    if (o.id === 'ORD-4840') {
+    if (o.quantity > 1) {
       return (
         <div className="flex items-center gap-3">
           <div className="flex gap-0.5 shrink-0 relative pr-2">
             <img
-              src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=300"
-              alt="Shawarma"
+              src={o.productImage}
+              alt={o.productName}
               className="w-8 h-8 rounded-lg object-cover bg-slate-100 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 z-10"
             />
-            <img
-              src="https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&q=80&w=300"
-              alt="Fries"
-              className="w-8 h-8 rounded-lg object-cover bg-slate-100 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 absolute top-0 left-4 shadow-md"
-            />
+            <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 absolute top-0 left-4 shadow-md flex items-center justify-center">
+              <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">+{o.quantity - 1}</span>
+            </div>
           </div>
           <div>
-            <h4 className="font-extrabold text-slate-900 dark:text-white leading-tight">Chicken Shawarma</h4>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-bold">+1 more</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">2 items</p>
-          </div>
-        </div>
-      );
-    }
-    
-    if (o.id === 'ORD-4846') {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex gap-0.5 shrink-0 relative pr-2">
-            <img
-              src="https://images.unsplash.com/photo-1569718212165-3a8278d5fa62?auto=format&fit=crop&q=80&w=300"
-              alt="Noodles"
-              className="w-8 h-8 rounded-lg object-cover bg-slate-100 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 z-10"
-            />
-            <img
-              src="https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=300"
-              alt="Coffee"
-              className="w-8 h-8 rounded-lg object-cover bg-slate-100 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 absolute top-0 left-4 shadow-md"
-            />
-          </div>
-          <div>
-            <h4 className="font-extrabold text-slate-900 dark:text-white leading-tight">2 products</h4>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">2 items</p>
+            <h4 className="font-extrabold text-slate-900 dark:text-white leading-tight">{o.productName}</h4>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-bold">+{o.quantity - 1} more</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{o.quantity} items</p>
           </div>
         </div>
       );
@@ -404,7 +387,7 @@ export default function OrdersView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredOrders.map((o) => (
+              {paginatedOrders.map((o) => (
                 <tr key={o.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition">
                   {/* Order ID */}
                   <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
@@ -581,16 +564,17 @@ export default function OrdersView({
       {/* 5. Pagination Footer */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
         <span className="text-slate-500 dark:text-slate-400 font-bold">
-          Showing 1 to {filteredOrders.length} of 142 orders
+          Showing {((safeCurrentPage - 1) * ROWS_PER_PAGE) + 1}–{Math.min(safeCurrentPage * ROWS_PER_PAGE, filteredOrders.length)} of {filteredOrders.length} orders
         </span>
 
         {/* Page controllers */}
         <div className="flex items-center gap-1">
-          {[1, 2, 3, 4, 5].map((page) => (
+          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
             <button
               key={page}
+              onClick={() => setCurrentPage(page)}
               className={`w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs transition cursor-pointer ${
-                page === 1
+                page === safeCurrentPage
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
               }`}
@@ -598,11 +582,22 @@ export default function OrdersView({
               {page}
             </button>
           ))}
-          <span className="text-slate-400 dark:text-slate-600 px-1">...</span>
-          <button className="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800">
-            20
-          </button>
-          <button className="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800">
+          {totalPages > 5 && (
+            <>
+              <span className="text-slate-400 dark:text-slate-600 px-1">...</span>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
+              >
+                {totalPages}
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+            disabled={safeCurrentPage >= totalPages}
+            className="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40"
+          >
             &gt;
           </button>
         </div>

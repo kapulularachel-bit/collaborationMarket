@@ -7,17 +7,28 @@ interface MessagesViewProps {
   messages: Message[];
   onSendMessage: (chatId: string, text: string) => void;
   onReceiveMockMessage?: (chatId: string, text: string) => void;
+  onChatOpen: (chatId: string) => void;
 }
 
 export default function MessagesView({
   chats,
   messages,
   onSendMessage,
-  onReceiveMockMessage
+  onReceiveMockMessage,
+  onChatOpen
 }: MessagesViewProps) {
   const [activeChatId, setActiveChatId] = useState<string | null>(chats[0]?.id || null);
   const [typedMessage, setTypedMessage] = useState('');
   const chatHistoryEndRef = useRef<HTMLDivElement>(null);
+
+  // Keep activeChatId in sync: if it no longer exists in chats, fall back to first available
+  useEffect(() => {
+    if (chats.length === 0) {
+      setActiveChatId(null);
+    } else if (!chats.find(c => c.id === activeChatId)) {
+      setActiveChatId(chats[0].id);
+    }
+  }, [chats]);
 
   // Auto-scroll chat window to bottom
   useEffect(() => {
@@ -72,7 +83,10 @@ export default function MessagesView({
             return (
               <div
                 key={c.id}
-                onClick={() => setActiveChatId(c.id)}
+                onClick={() => {
+                  setActiveChatId(c.id);
+                  onChatOpen(c.id);
+                }}
                 className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition ${
                   isActive 
                     ? "bg-slate-50 dark:bg-slate-850/60 border-l-4 border-[#2E7D32]" 

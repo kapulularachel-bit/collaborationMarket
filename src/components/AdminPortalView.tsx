@@ -1,35 +1,23 @@
 import React, { useState } from 'react';
 import {
   Users,
-  Briefcase,
   Layers,
   ShoppingBag,
-  TrendingUp,
   LayoutDashboard,
   ShieldCheck,
-  Percent,
-  AlertTriangle,
   Settings,
   Plus,
   Trash2,
-  CheckCircle,
   XCircle,
   ArrowUp,
   ArrowDown,
-  ExternalLink,
-  Edit,
   Store,
-  Upload,
-  Calendar,
-  DollarSign,
   Search,
-  Filter,
-  Check,
   ChevronRight,
   Sparkles,
   MapPin
 } from 'lucide-react';
-import { User, Shop, Product, Order, BillboardCampaign, Promotion } from '../types';
+import { User, Shop, Product, Order, BillboardCampaign } from '../types';
 
 interface AdminPortalViewProps {
   users: User[];
@@ -37,13 +25,10 @@ interface AdminPortalViewProps {
   products: Product[];
   orders: Order[];
   billboards: BillboardCampaign[];
-  promotions: Promotion[];
   onAddBillboard: (campaign: Omit<BillboardCampaign, 'id' | 'orderIndex' | 'isActive'>) => void;
   onReorderBillboard: (index: number, direction: 'up' | 'down') => void;
   onDeleteBillboard: (id: string) => void;
   onToggleBillboardActive: (id: string) => void;
-  onDeleteProduct: (productId: string) => void;
-  onUpdateOrderStatus: (orderId: string, status: Order['status']) => void;
 }
 
 export default function AdminPortalView({
@@ -52,13 +37,10 @@ export default function AdminPortalView({
   products,
   orders,
   billboards,
-  promotions,
   onAddBillboard,
   onReorderBillboard,
   onDeleteBillboard,
-  onToggleBillboardActive,
-  onDeleteProduct,
-  onUpdateOrderStatus
+  onToggleBillboardActive
 }: AdminPortalViewProps) {
   // Sidebar navigation state
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'shops' | 'products' | 'orders' | 'billboard'>('dashboard');
@@ -68,6 +50,11 @@ export default function AdminPortalView({
   const [shopSearchQuery, setShopSearchQuery] = useState('');
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
+
+  const userQuery = userSearchQuery.toLowerCase();
+  const shopQuery = shopSearchQuery.toLowerCase();
+  const productQuery = productSearchQuery.toLowerCase();
+  const orderQuery = orderSearchQuery.toLowerCase();
 
   // Billboard form state
   const [isNewBillboardOpen, setIsNewBillboardOpen] = useState(false);
@@ -128,10 +115,15 @@ export default function AdminPortalView({
     setBbHeadline('');
     setBbDescription('');
     setBbImageUrl('');
+    setBbCtaText('Explore Now');
+    setBbDestLink('product:p1');
+    setBbType('Featured Product');
+    setBbStartDate('2026-06-29');
+    setBbEndDate('2026-07-06');
     setIsNewBillboardOpen(false);
 
     // Append to live activity feed
-    setActivities([
+    setActivities(prev => [
       {
         id: 'ab' + Date.now(),
         type: 'billboard',
@@ -139,12 +131,13 @@ export default function AdminPortalView({
         time: 'Just now',
         badge: 'Billboard'
       },
-      ...activities
+      ...prev
     ]);
   };
 
   return (
-    <div className="flex-1 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-850 shadow-xl min-h-[768px]">
+    
+    <div className="flex-1 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl min-h-[768px]">
       
       {/* ==================================
           SIDEBAR NAVIGATION (SaaS style)
@@ -561,7 +554,7 @@ export default function AdminPortalView({
                           <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wider text-[10px]">Campaign Type</label>
                           <select 
                             value={bbType}
-                            onChange={(e) => setBbType(e.target.value as any)}
+                            onChange={(e) => setBbType(e.target.value as BillboardCampaign['contentType'])}
                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none text-[11px]"
                           >
                             <option value="Featured Shop">Featured Shop</option>
@@ -607,7 +600,7 @@ export default function AdminPortalView({
                             placeholder="e.g. Shop Now" 
                             value={bbCtaText}
                             onChange={(e) => setBbCtaText(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none"
                           />
                         </div>
 
@@ -618,7 +611,7 @@ export default function AdminPortalView({
                             placeholder="e.g. shop:s1 or product:p2" 
                             value={bbDestLink}
                             onChange={(e) => setBbDestLink(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none"
                           />
                         </div>
                       </div>
@@ -630,7 +623,7 @@ export default function AdminPortalView({
                             type="date" 
                             value={bbStartDate}
                             onChange={(e) => setBbStartDate(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none text-[11px]"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none text-[11px]"
                           />
                         </div>
 
@@ -640,7 +633,7 @@ export default function AdminPortalView({
                             type="date" 
                             value={bbEndDate}
                             onChange={(e) => setBbEndDate(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none text-[11px]"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-1 focus:ring-emerald-700 focus:outline-none text-[11px]"
                           />
                         </div>
                       </div>
@@ -688,7 +681,7 @@ export default function AdminPortalView({
                         <button 
                           onClick={() => onReorderBillboard(index, 'up')}
                           disabled={index === 0}
-                          className="p-1 rounded bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-500 dark:text-slate-400 disabled:opacity-20 disabled:hover:bg-slate-50 cursor-pointer"
+                          className="p-1 rounded bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-20 disabled:hover:bg-slate-50 cursor-pointer"
                           title="Move Up"
                         >
                           <ArrowUp className="w-3.5 h-3.5" />
@@ -699,7 +692,7 @@ export default function AdminPortalView({
                         <button 
                           onClick={() => onReorderBillboard(index, 'down')}
                           disabled={index === billboards.length - 1}
-                          className="p-1 rounded bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-500 dark:text-slate-400 disabled:opacity-20 disabled:hover:bg-slate-50 cursor-pointer"
+                          className="p-1 rounded bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-20 disabled:hover:bg-slate-50 cursor-pointer"
                           title="Move Down"
                         >
                           <ArrowDown className="w-3.5 h-3.5" />
@@ -801,9 +794,9 @@ export default function AdminPortalView({
                   </thead>
                   <tbody>
                     {users
-                      .filter(u => u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))
+                      .filter(u => u.name.toLowerCase().includes(userQuery) || u.email.toLowerCase().includes(userQuery))
                       .map((u) => (
-                        <tr key={u.id} className="border-b border-slate-100 dark:border-slate-800/60 last:border-none hover:bg-slate-50 dark:hover:bg-slate-850/30">
+                        <tr key={u.id} className="border-b border-slate-100 dark:border-slate-800/60 last:border-none hover:bg-slate-50 dark:hover:bg-slate-800/30">
                           <td className="p-4 flex items-center gap-3">
                             <img src={u.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
                             <div>
@@ -820,7 +813,7 @@ export default function AdminPortalView({
                           <td className="p-4 text-slate-600 dark:text-slate-300 font-medium">{u.contact}</td>
                           <td className="p-4 text-slate-500 dark:text-slate-400 font-mono">{u.registrationDate}</td>
                           <td className="p-4">
-                            <span className={`inline-block font-bold text-[10px] px-2 py-0.5 rounded-full ${u.isSeller ? 'bg-amber-100 dark:bg-amber-955/30 text-amber-800 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                            <span className={`inline-block font-bold text-[10px] px-2 py-0.5 rounded-full ${u.isSeller ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                               {u.isSeller ? 'Seller Account' : 'Buyer'}
                             </span>
                           </td>
@@ -856,7 +849,7 @@ export default function AdminPortalView({
 
               <div className="grid grid-cols-3 gap-6">
                 {shops
-                  .filter(s => s.name.toLowerCase().includes(shopSearchQuery.toLowerCase()))
+                  .filter(s => s.name.toLowerCase().includes(shopQuery))
                   .map((s) => (
                     <div key={s.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col">
                       <div className="h-28 bg-slate-100 dark:bg-slate-800 relative">
@@ -927,9 +920,9 @@ export default function AdminPortalView({
                   </thead>
                   <tbody>
                     {products
-                      .filter(p => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                      .filter(p => p.name.toLowerCase().includes(productQuery))
                       .map((p) => (
-                        <tr key={p.id} className="border-b border-slate-100 dark:border-slate-800/60 last:border-none hover:bg-slate-50 dark:hover:bg-slate-850/30">
+                        <tr key={p.id} className="border-b border-slate-100 dark:border-slate-800/60 last:border-none hover:bg-slate-50 dark:hover:bg-slate-800/30">
                           <td className="p-4 flex items-center gap-3">
                             <img src={p.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-50 dark:bg-slate-800" />
                             <div>
@@ -994,16 +987,16 @@ export default function AdminPortalView({
                   </thead>
                   <tbody>
                     {orders
-                      .filter(o => o.id.toLowerCase().includes(orderSearchQuery.toLowerCase()) || o.productName.toLowerCase().includes(orderSearchQuery.toLowerCase()))
+                      .filter(o => o.id.toLowerCase().includes(orderQuery) || o.productName.toLowerCase().includes(orderQuery))
                       .map((o) => (
-                        <tr key={o.id} className="border-b border-slate-100 dark:border-slate-800/60 last:border-none hover:bg-slate-50 dark:hover:bg-slate-850/30">
+                        <tr key={o.id} className="border-b border-slate-100 dark:border-slate-800/60 last:border-none hover:bg-slate-50 dark:hover:bg-slate-800/30">
                           <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">{o.id}</td>
                           <td className="p-4 text-slate-500 dark:text-slate-400">{o.orderDate}</td>
                           <td className="p-4 font-bold text-slate-800 dark:text-white">{o.buyerName}</td>
                           <td className="p-4 font-semibold text-slate-700 dark:text-slate-300">{o.productName}</td>
                           <td className="p-4 font-black text-slate-950 dark:text-white">MWK {(o.price * o.quantity).toLocaleString()}</td>
                           <td className="p-4">
-                            <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-750 px-2 py-0.5 rounded-full font-bold">
+                            <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full font-bold">
                               {o.status}
                             </span>
                           </td>

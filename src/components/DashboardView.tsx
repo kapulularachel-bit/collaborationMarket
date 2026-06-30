@@ -47,9 +47,11 @@ export default function DashboardView({
 
   // Metrics calculations
   const totalProductsCount = products.length;
-  const activeOrdersCount = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
-  const pendingDeliveriesCount = deliveries.filter(d => d.status !== 'Delivered' && d.status !== 'Cancelled').length;
-  const totalSalesThisMonth = 450000; // MWK - locked to screenshot
+  const activeOrdersCount = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.status !== 'Completed').length;
+  const pendingDeliveriesCount = deliveries.filter(d => d.status !== 'Delivered' && d.status !== 'Cancelled' && d.status !== 'Completed').length;
+  const totalSalesThisMonth = orders
+    .filter(o => o.status === 'Delivered' || o.status === 'Completed')
+    .reduce((sum, o) => sum + (o.price * (o.quantity || 1)), 0);
 
   // Helper for order status badge styling
   const getStatusBadge = (status: string) => {
@@ -241,9 +243,11 @@ export default function DashboardView({
               <MessageSquare className="w-5 h-5" />
             </div>
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Messages</span>
-            <span className="absolute top-3 right-6 bg-red-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 animate-pulse">
-              3
-            </span>
+            {chats.filter(c => c.unreadCount > 0).length > 0 && (
+              <span className="absolute top-3 right-6 bg-red-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 animate-pulse">
+                {chats.filter(c => c.unreadCount > 0).length}
+              </span>
+            )}
           </button>
 
           <button 

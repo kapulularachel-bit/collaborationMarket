@@ -124,6 +124,8 @@ export default function App() {
   const [newPromoDays, setNewPromoDays] = useState('7');
 
   // --- Helper logger ---
+  const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
   const appendLog = (message: string) => {
     setSystemLogs(prev => [...prev, `${message} (${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`]);
   };
@@ -131,24 +133,27 @@ export default function App() {
   // --- Handlers ---
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProdName.trim() || !newProdPrice || !newProdStock) {
-      alert("Please enter a product name, price, and stock count.");
+    const priceValue = Number(newProdPrice);
+    const stockValue = Number(newProdStock);
+
+    if (!newProdName.trim() || !newProdPrice || !newProdStock || Number.isNaN(priceValue) || Number.isNaN(stockValue)) {
+      alert("Please enter a valid product name, price, and stock count.");
       return;
     }
 
     const imgFallback = newProdImg.trim() || (
-      newProdCategory.includes('Beverages') 
+      newProdCategory.includes('Beverages')
         ? 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=300'
         : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=300'
     );
 
     const productObj: Product = {
-      id: `p${products.length + 1}`,
+      id: generateId('p'),
       name: newProdName.trim(),
       description: newProdDesc.trim() || "No description provided.",
       category: newProdCategory,
-      price: parseFloat(newProdPrice),
-      stock: parseInt(newProdStock),
+      price: priceValue,
+      stock: stockValue,
       images: [imgFallback],
       condition: newProdCondition,
       isAvailable: true,
@@ -185,23 +190,32 @@ export default function App() {
   };
 
   const handleUpdateProductStock = (productId: string, newStock: number) => {
+    let productName = '';
     setProducts(prev => prev.map(p => {
       if (p.id === productId) {
-        appendLog(`Adjusted stock of "${p.name}" to ${newStock} items.`);
+        productName = p.name;
         return { ...p, stock: newStock };
       }
       return p;
     }));
+    if (productName) {
+      appendLog(`Adjusted stock of "${productName}" to ${newStock} items.`);
+    }
   };
 
   const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
+    let orderUpdated = false;
     setOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        appendLog(`Updated order status of #${orderId} to "${status}".`);
+        orderUpdated = true;
         return { ...o, status };
       }
       return o;
     }));
+
+    if (orderUpdated) {
+      appendLog(`Updated order status of #${orderId} to "${status}".`);
+    }
 
     // sync to deliveries if delivered
     if (status === 'Delivered') {
@@ -210,18 +224,29 @@ export default function App() {
   };
 
   const handleUpdateDeliveryStatus = (deliveryId: string, status: DeliveryStatus) => {
-    setDeliveries(prev => prev.map(d => {
-      if (d.id === deliveryId) {
-        appendLog(`Updated runner delivery status of tracker #${deliveryId} to "${status}".`);
-        return { ...d, status, updatedAt: 'Just now' };
-      }
-      return d;
-    }));
+    let orderIdToUpdate: string | null = null;
+    let deliveryUpdated = false;
 
-    // sync to order state
-    const delivery = deliveries.find(d => d.id === deliveryId);
-    if (delivery) {
-      setOrders(prev => prev.map(o => o.id === delivery.orderId ? { ...o, status: status as OrderStatus } : o));
+    setDeliveries((prevDeliveries) => {
+      const delivery = prevDeliveries.find(d => d.id === deliveryId);
+      if (delivery && status === 'Delivered') {
+        orderIdToUpdate = delivery.orderId;
+      }
+      return prevDeliveries.map(d => {
+        if (d.id === deliveryId) {
+          deliveryUpdated = true;
+          return { ...d, status, updatedAt: 'Just now' };
+        }
+        return d;
+      });
+    });
+
+    if (deliveryUpdated) {
+      appendLog(`Updated runner delivery status of tracker #${deliveryId} to "${status}".`);
+    }
+
+    if (orderIdToUpdate) {
+      setOrders(prevOrders => prevOrders.map(o => o.id === orderIdToUpdate ? { ...o, status: 'Delivered' } : o));
     }
   };
 
@@ -232,26 +257,37 @@ export default function App() {
       return;
     }
 
+    const discValue = Number(newPromoDiscount);
+    const daysValue = Number(newPromoDays);
+    if (Number.isNaN(discValue) || Number.isNaN(daysValue) || discValue <= 0 || daysValue <= 0) {
+      alert("Please choose a valid discount percentage and duration.");
+      return;
+    }
+
     const prod = products.find(p => p.id === newPromoProdId);
     if (!prod) return;
 
     const promoObj: Promotion = {
-      id: `prom-${promotions.length + 1}`,
+      id: generateId('prom'),
       productId: newPromoProdId,
       productName: prod.name,
-      discountPercent: parseInt(newPromoDiscount),
-      expiryDate: new Date(Date.now() + parseInt(newPromoDays) * 24 * 60 * 60 * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+      discountPercent: discValue,
+      expiryDate: new Date(Date.now() + daysValue * 24 * 60 * 60 * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
       isActive: true
     };
 
     setPromotions(prev => [promoObj, ...prev]);
-    appendLog(`Launched ${newPromoDiscount}% discount campaign for "${prod.name}".`);
+    appendLog(`Launched ${discValue}% discount campaign for "${prod.name}".`);
     setIsCreatePromotionOpen(false);
+
+    setNewPromoProdId('');
+    setNewPromoDiscount('10');
+    setNewPromoDays('7');
   };
 
   const handleSendMessage = (chatId: string, text: string) => {
     const msgObj: Message = {
-      id: `m-${messages.length + 1}`,
+      id: generateId('m'),
       chatId,
       senderId: 'u1',
       text,
@@ -264,10 +300,12 @@ export default function App() {
   };
 
   const handleReceiveMockMessage = (chatId: string, text: string) => {
+    const chat = chats.find(c => c.id === chatId);
+    const senderId = chat?.buyerId || 'u2';
     const msgObj: Message = {
-      id: `m-${messages.length + 2}`,
+      id: generateId('m'),
       chatId,
-      senderId: 'u2',
+      senderId,
       text,
       timestamp: 'Just now'
     };
@@ -277,10 +315,14 @@ export default function App() {
     appendLog(`Received buyer message inquiry on thread #${chatId}.`);
   };
 
+  const handleOpenChat = (chatId: string) => {
+    setChats(prev => prev.map(c => c.id === chatId ? { ...c, unreadCount: 0 } : c));
+  };
+
   const handleAddBillboard = (campaign: Omit<BillboardCampaign, 'id' | 'orderIndex' | 'isActive'>) => {
     const bbObj: BillboardCampaign = {
       ...campaign,
-      id: `bb-${billboards.length + 1}`,
+      id: generateId('bb'),
       orderIndex: billboards.length,
       isActive: true
     };
@@ -309,6 +351,11 @@ export default function App() {
   const handleDeleteBillboard = (id: string) => {
     setBillboards(prev => prev.filter(b => b.id !== id));
     appendLog(`Removed billboard campaign #${id} permanently.`);
+  };
+
+  const handleDeletePromotion = (promoId: string) => {
+    setPromotions(prev => prev.filter(p => p.id !== promoId));
+    appendLog(`Cancelled promotion campaign #${promoId}.`);
   };
 
   // --- Render Tab Router ---
@@ -359,6 +406,7 @@ export default function App() {
             messages={messages}
             onSendMessage={handleSendMessage}
             onReceiveMockMessage={handleReceiveMockMessage}
+            onChatOpen={handleOpenChat}
           />
         );
       case 'Promotions':
@@ -367,7 +415,7 @@ export default function App() {
             promotions={promotions}
             products={products}
             setIsCreatePromotionOpen={setIsCreatePromotionOpen}
-            onDeletePromotion={(promoId) => setPromotions(prev => prev.filter(p => p.id !== promoId))}
+            onDeletePromotion={handleDeletePromotion}
           />
         );
       case 'Analytics':
@@ -523,7 +571,7 @@ export default function App() {
                   onAddProduct={(p) => {
                     const item: Product = {
                       ...p,
-                      id: `p${products.length + 1}`,
+                      id: generateId('p'),
                       dateAdded: new Date().toISOString().split('T')[0],
                       views: 0,
                       salesCount: 0
@@ -539,7 +587,7 @@ export default function App() {
                     const target = products.find(p => p.id === pId);
                     if (!target) return;
                     const promo: Promotion = {
-                      id: `prom-${promotions.length + 1}`,
+                      id: generateId('prom'),
                       productId: pId,
                       productName: target.name,
                       discountPercent: disc,
@@ -593,13 +641,10 @@ export default function App() {
             products={products}
             orders={orders}
             billboards={billboards}
-            promotions={promotions}
             onAddBillboard={handleAddBillboard}
             onReorderBillboard={handleReorderBillboard}
             onDeleteBillboard={handleDeleteBillboard}
             onToggleBillboardActive={handleToggleBillboardActive}
-            onDeleteProduct={handleDeleteProduct}
-            onUpdateOrderStatus={handleUpdateOrderStatus}
           />
         </div>
       )}

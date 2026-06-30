@@ -95,7 +95,7 @@ export default function ReviewsView() {
         </h3>
 
         <div className="space-y-5 divide-y divide-slate-100 dark:divide-slate-800">
-          {reviews.map((r, idx) => (
+          {reviews.map((r) => (
             <div key={r.id} className={`pt-4 first:pt-0 space-y-3.5`}>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">

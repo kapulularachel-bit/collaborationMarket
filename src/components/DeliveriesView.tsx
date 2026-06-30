@@ -45,10 +45,11 @@ export default function DeliveriesView({
       {deliveries.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {deliveries.map((d) => {
-            let activeNodesCount = 1;
+            let activeNodesCount = 0;
+            if (d.status === 'Awaiting Seller Confirmation') activeNodesCount = 1;
             if (d.status === 'Preparing Order') activeNodesCount = 2;
             if (d.status === 'Ready for Pickup') activeNodesCount = 3;
-            if (d.status === 'Out for Delivery') activeNodesCount = 3; // outbound
+            if (d.status === 'Out for Delivery') activeNodesCount = 4;
             if (d.status === 'Delivered' || d.status === 'Completed') activeNodesCount = 4;
 
             return (
