@@ -2,159 +2,104 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 
-export default function Onboarding({ onComplete }: { onComplete: () => void }) {
+const UNIVERSITIES = [
+  "University of Nairobi",
+  "Kenyatta University",
+  "Strathmore University",
+  "JKUAT",
+  "USIU-Africa",
+  "Daystar University",
+  "Catholic University of Eastern Africa",
+];
+
+export default function Onboarding({ onDone }: { onDone: () => void }) {
   const { profile, refreshProfile } = useAuth();
-  const [step, setStep] = useState(0);
-  const [university, setUniversity] = useState("");
-  const [residence, setResidence] = useState("");
   const [shopName, setShopName] = useState("");
-  const [shopCategory, setShopCategory] = useState("Food");
-  const [shopDescription, setShopDescription] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Food");
+  const [university, setUniversity] = useState(UNIVERSITIES[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleProfileUpdate = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!profile) return;
-    setLoading(true);
     setError(null);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ university, residence, role: "seller" })
-      .eq("id", profile.id);
-    if (error) {
-      setError(error.message);
+    setLoading(true);
+
+    const { data: shop, error: shopErr } = await supabase
+      .from("shops")
+      .insert({
+        seller_id: profile.id,
+        name: shopName,
+        description,
+        category,
+        university,
+        rating: 0,
+        total_sales: 0,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (shopErr) {
+      setError(shopErr.message);
       setLoading(false);
       return;
     }
+
+    if (profile.university !== university) {
+      await supabase.from("profiles").update({ university }).eq("id", profile.id);
+    }
+
     await refreshProfile();
-    setStep(1);
     setLoading(false);
+    onDone();
   };
 
-  const handleShopCreate = async () => {
-    if (!profile) return;
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.from("shops").insert({
-      seller_id: profile.id,
-      name: shopName,
-      description: shopDescription,
-      category: shopCategory,
-      university,
-    });
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
-    setLoading(false);
-    onComplete();
-  };
+  const inputCls = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gula-50 via-slate-50 to-emerald-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center justify-center gap-2">
-          {[0, 1].map((i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all ${i <= step ? "w-8 bg-gula-600" : "w-4 bg-slate-200"}`}
-            />
-          ))}
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gula-50 via-slate-50 to-emerald-50 px-4 dark:from-gula-950 dark:via-slate-950 dark:to-emerald-950">
+      <div className="w-full max-w-lg">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Set up your shop</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Tell customers what you sell and where you operate.</p>
         </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          {step === 0 ? (
-            <>
-              <h2 className="mb-1 text-xl font-bold text-slate-900">Set up your profile</h2>
-              <p className="mb-5 text-sm text-slate-500">Tell us where you study and live.</p>
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">University</label>
-                  <input
-                    type="text"
-                    value={university}
-                    onChange={(e) => setUniversity(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
-                    placeholder="University of Nairobi"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Residence / Hostel</label>
-                  <input
-                    type="text"
-                    value={residence}
-                    onChange={(e) => setResidence(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
-                    placeholder="Hall 3"
-                  />
-                </div>
-                {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>}
-                <button
-                  onClick={handleProfileUpdate}
-                  disabled={loading || !university || !residence}
-                  className="w-full rounded-xl bg-gula-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gula-700 disabled:opacity-50"
-                >
-                  {loading ? "Saving..." : "Continue"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="mb-1 text-xl font-bold text-slate-900">Create your shop</h2>
-              <p className="mb-5 text-sm text-slate-500">Set up your storefront to start selling.</p>
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Shop Name</label>
-                  <input
-                    type="text"
-                    value={shopName}
-                    onChange={(e) => setShopName(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
-                    placeholder="Brenda's Kitchen"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Category</label>
-                  <select
-                    value={shopCategory}
-                    onChange={(e) => setShopCategory(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
-                  >
-                    <option>Food</option>
-                    <option>Snacks</option>
-                    <option>Drinks</option>
-                    <option>Stationery</option>
-                    <option>Electronics</option>
-                    <option>Fashion</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Description</label>
-                  <textarea
-                    value={shopDescription}
-                    onChange={(e) => setShopDescription(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
-                    placeholder="Fresh homemade meals delivered to your hostel..."
-                  />
-                </div>
-                {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>}
-                <button
-                  onClick={handleShopCreate}
-                  disabled={loading || !shopName}
-                  className="w-full rounded-xl bg-gula-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gula-700 disabled:opacity-50"
-                >
-                  {loading ? "Creating..." : "Create Shop & Start Selling"}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Shop Name</label>
+            <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} required className={inputCls} placeholder="Brenda's Kitchen" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputCls} placeholder="Home-cooked meals delivered fresh to your hostel." />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
+                <option>Food</option>
+                <option>Drinks</option>
+                <option>Snacks</option>
+                <option>Stationery</option>
+                <option>Electronics</option>
+                <option>Fashion</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">University</label>
+              <select value={university} onChange={(e) => setUniversity(e.target.value)} className={inputCls}>
+                {UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}
+              </select>
+            </div>
+          </div>
+          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/50 dark:text-red-400">{error}</div>}
+          <button type="submit" disabled={loading} className="w-full rounded-xl bg-gula-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gula-700 disabled:opacity-50">
+            {loading ? "Creating shop..." : "Create Shop"}
+          </button>
+        </form>
       </div>
     </div>
   );

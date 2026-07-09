@@ -45,6 +45,8 @@ export interface Product {
   created_at: string;
 }
 
+export interface OrderItem { product_id: string; product_name: string; quantity: number; price: number; }
+
 export interface Order {
   id: string;
   shop_id: string;
@@ -56,13 +58,6 @@ export interface Order {
   delivery_address: string;
   notes: string | null;
   created_at: string;
-}
-
-export interface OrderItem {
-  product_id: string;
-  product_name: string;
-  quantity: number;
-  price: number;
 }
 
 export interface Delivery {

@@ -1,291 +1,411 @@
 import { useEffect, useState } from "react";
-import { Shield, Store, Package, ClipboardList, Users, ImagePlus, Plus, X, Trash2, LayoutDashboard } from "lucide-react";
+import { Store, Package, ShoppingCart, Users, ImagePlus, Trash2, ShieldCheck, TrendingUp, DollarSign, Activity } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import type { Shop, Product, Order, Billboard, Profile } from "../types";
+import type { Shop, Product, Order, Profile, Billboard } from "../types";
 
-type AdminTab = "overview" | "billboards" | "shops" | "products" | "orders" | "users";
+type Tab = "overview" | "billboards" | "shops" | "products" | "orders" | "users";
 
 export default function AdminPortalView() {
-  const [tab, setTab] = useState<AdminTab>("overview");
+  const [tab, setTab] = useState<Tab>("overview");
   const [shops, setShops] = useState<Shop[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [billboards, setBillboards] = useState<Billboard[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
+  const [billboards, setBillboards] = useState<Billboard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBillboardModal, setShowBillboardModal] = useState(false);
-  const [bbForm, setBbForm] = useState({ title: "", image_url: "", link_url: "", position: "0" });
 
   useEffect(() => {
-    (async () => {
-      const [shopsRes, productsRes, ordersRes, billboardsRes, usersRes] = await Promise.all([
-        supabase.from("shops").select("*").order("created_at", { ascending: false }),
-        supabase.from("products").select("*").order("created_at", { ascending: false }).limit(20),
-        supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(20),
-        supabase.from("billboards").select("*").order("position", { ascending: true }),
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-      ]);
-      setShops((shopsRes.data ?? []) as Shop[]);
-      setProducts((productsRes.data ?? []) as Product[]);
-      setOrders((ordersRes.data ?? []) as Order[]);
-      setBillboards((billboardsRes.data ?? []) as Billboard[]);
-      setUsers((usersRes.data ?? []) as Profile[]);
+    Promise.all([
+      supabase.from("shops").select("*").order("created_at", { ascending: false }),
+      supabase.from("products").select("*").order("created_at", { ascending: false }),
+      supabase.from("orders").select("*").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("billboards").select("*").order("position", { ascending: true }),
+    ]).then(([s, p, o, u, b]) => {
+      if (s.data) setShops(s.data as Shop[]);
+      if (p.data) setProducts(p.data as Product[]);
+      if (o.data) setOrders(o.data as Order[]);
+      if (u.data) setUsers(u.data as Profile[]);
+      if (b.data) setBillboards(b.data as Billboard[]);
       setLoading(false);
-    })();
+    });
   }, []);
 
-  const createBillboard = async () => {
-    await supabase.from("billboards").insert({
-      title: bbForm.title,
-      image_url: bbForm.image_url,
-      link_url: bbForm.link_url || null,
-      position: parseInt(bbForm.position) || 0,
-    });
-    setShowBillboardModal(false);
-    setBbForm({ title: "", image_url: "", link_url: "", position: "0" });
-    const { data } = await supabase.from("billboards").select("*").order("position", { ascending: true });
-    setBillboards((data ?? []) as Billboard[]);
-  };
+  if (loading) return <div className="p-6 text-sm text-slate-400 dark:text-slate-500">Loading admin portal...</div>;
 
-  const deleteBillboard = async (id: string) => {
-    await supabase.from("billboards").delete().eq("id", id);
-    setBillboards(billboards.filter((b) => b.id !== id));
-  };
-
-  const toggleBillboard = async (b: Billboard) => {
-    await supabase.from("billboards").update({ is_active: !b.is_active }).eq("id", b.id);
-    setBillboards(billboards.map((bb) => (bb.id === b.id ? { ...bb, is_active: !bb.is_active } : bb)));
-  };
-
-  if (loading) return <div className="p-6 text-slate-400">Loading...</div>;
-
-  const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
-    { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "billboards", label: "Billboards", icon: ImagePlus },
-    { id: "shops", label: "Shops", icon: Store },
-    { id: "products", label: "Products", icon: Package },
-    { id: "orders", label: "Orders", icon: ClipboardList },
-    { id: "users", label: "Users", icon: Users },
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "billboards", label: "Billboards" },
+    { id: "shops", label: "Shops" },
+    { id: "products", label: "Products" },
+    { id: "orders", label: "Orders" },
+    { id: "users", label: "Users" },
   ];
 
+  const totalRevenue = orders.filter((o) => o.status === "delivered").reduce((s, o) => s + o.total, 0);
+  const activeShops = shops.filter((s) => s.is_active).length;
+  const sellers = users.filter((u) => u.role === "seller").length;
+  const buyers = users.filter((u) => u.role === "buyer").length;
+
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center gap-2">
-        <Shield size={22} className="text-gula-600" />
+    <div className="space-y-6 p-4 lg:p-6">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gula-600 shadow-sm">
+          <ShieldCheck size={20} className="text-white" />
+        </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Admin Portal</h2>
-          <p className="text-sm text-slate-500">Manage the GULA Marketplace platform</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Admin Portal</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Platform management dashboard</p>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((t) => {
-          const Icon = t.icon;
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                tab === t.id ? "bg-gula-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}>
-              <Icon size={14} /> {t.label}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-700">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              tab === t.id
+                ? "bg-gula-600 text-white"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {tab === "overview" && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "Total Shops", value: shops.length, icon: Store, color: "bg-blue-50 text-blue-600" },
-            { label: "Total Products", value: products.length, icon: Package, color: "bg-purple-50 text-purple-600" },
-            { label: "Total Orders", value: orders.length, icon: ClipboardList, color: "bg-emerald-50 text-emerald-600" },
-            { label: "Total Users", value: users.length, icon: Users, color: "bg-amber-50 text-amber-600" },
-          ].map((s) => {
-            const Icon = s.icon;
-            return (
-              <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${s.color}`}>
-                  <Icon size={20} />
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[
+              { label: "Total Shops", value: shops.length, sub: `${activeShops} active`, icon: Store, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/40" },
+              { label: "Total Products", value: products.length, sub: `${products.filter((p) => p.is_available).length} available`, icon: Package, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/40" },
+              { label: "Total Orders", value: orders.length, sub: `${orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length} active`, icon: ShoppingCart, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40" },
+              { label: "Total Users", value: users.length, sub: `${sellers} sellers, ${buyers} buyers`, icon: Users, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
+            ].map((s) => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                  <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${s.bg}`}>
+                    <Icon size={20} className={s.color} />
+                  </div>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{s.value}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{s.label}</p>
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{s.sub}</p>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">{s.value}</p>
-                <p className="text-xs text-slate-400">{s.label}</p>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {tab === "billboards" && (
-        <div>
-          <div className="mb-4 flex justify-end">
-            <button onClick={() => setShowBillboardModal(true)} className="flex items-center gap-2 rounded-xl bg-gula-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gula-700">
-              <Plus size={16} /> Add Billboard
-            </button>
+              );
+            })}
           </div>
-          {billboards.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-              <ImagePlus size={40} className="mx-auto mb-3 text-slate-300" />
-              <p className="text-sm text-slate-400">No billboards yet</p>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-3 flex items-center gap-2">
+                <DollarSign size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Platform Revenue</h2>
+              </div>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white">KSh {totalRevenue.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">From {orders.filter((o) => o.status === "delivered").length} delivered orders</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {billboards.map((b) => (
-                <div key={b.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                  <div className="h-32 bg-slate-100">
-                    {b.image_url && <img src={b.image_url} alt={b.title} className="h-full w-full object-cover" />}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-3 flex items-center gap-2">
+                <TrendingUp size={16} className="text-blue-600 dark:text-blue-400" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Avg Order Value</h2>
+              </div>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white">KSh {orders.length > 0 ? Math.round(orders.reduce((s, o) => s + o.total, 0) / orders.length).toLocaleString() : 0}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Across all orders</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-3 flex items-center gap-2">
+                <Activity size={16} className="text-amber-600 dark:text-amber-400" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Active Billboards</h2>
+              </div>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white">{billboards.filter((b) => b.is_active).length}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Of {billboards.length} total</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+            <h2 className="mb-4 text-sm font-semibold text-slate-900 dark:text-white">Recent Orders</h2>
+            <div className="space-y-2">
+              {orders.slice(0, 5).map((o) => (
+                <div key={o.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 dark:border-slate-700">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{o.buyer_name}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{o.items.length} item(s) · KSh {o.total}</p>
                   </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-slate-900">{b.title}</h3>
-                      <button onClick={() => deleteBillboard(b.id)} className="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-500">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-xs text-slate-400">Position: {b.position}</span>
-                      <button onClick={() => toggleBillboard(b)} className={`rounded-lg px-2 py-0.5 text-xs font-medium ${
-                        b.is_active ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"
-                      }`}>
-                        {b.is_active ? "Active" : "Inactive"}
-                      </button>
-                    </div>
-                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${orderStatusColor(o.status)}`}>{o.status.replace(/_/g, " ")}</span>
                 </div>
               ))}
+              {orders.length === 0 && <p className="py-4 text-center text-xs text-slate-400 dark:text-slate-500">No orders yet</p>}
             </div>
-          )}
+          </div>
         </div>
       )}
 
+      {tab === "billboards" && <BillboardsTab billboards={billboards} setBillboards={setBillboards} />}
+
       {tab === "shops" && (
-        <div className="rounded-2xl border border-slate-200 bg-white">
-          <div className="divide-y divide-slate-50">
-            {shops.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-5 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gula-50 text-sm font-bold text-gula-700">
-                    {s.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{s.name}</p>
-                    <p className="text-xs text-slate-400">{s.category} · {s.university}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-400">{s.total_sales} sales</span>
-                  <span className="text-xs font-medium text-amber-500">{s.rating}★</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${s.is_active ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
-                    {s.is_active ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-700/50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Shop</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">University</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Rating</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Sales</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shops.map((s) => (
+                <tr key={s.id} className="border-b border-slate-100 last:border-0 dark:border-slate-700">
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{s.name}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.category}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.university}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.rating} ★</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.total_sales}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"}`}>
+                      {s.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {tab === "products" && (
-        <div className="rounded-2xl border border-slate-200 bg-white">
-          <div className="divide-y divide-slate-50">
-            {products.map((p) => (
-              <div key={p.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{p.name}</p>
-                  <p className="text-xs text-slate-400">{p.category}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-slate-900">KSh {Number(p.price).toLocaleString()}</span>
-                  <span className="text-xs text-slate-400">{p.stock} in stock</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-700/50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Product</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Stock</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((p) => (
+                <tr key={p.id} className="border-b border-slate-100 last:border-0 dark:border-slate-700">
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{p.name}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.category}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">KSh {p.price}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.stock}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.is_available ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"}`}>
+                      {p.is_available ? "Available" : "Unavailable"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {tab === "orders" && (
-        <div className="rounded-2xl border border-slate-200 bg-white">
-          <div className="divide-y divide-slate-50">
-            {orders.map((o) => (
-              <div key={o.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{o.buyer_name || "Anonymous"}</p>
-                  <p className="text-xs text-slate-400">{new Date(o.created_at).toLocaleDateString()}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600">
-                    {o.status.replace("_", " ")}
-                  </span>
-                  <span className="text-sm font-bold text-slate-900">KSh {Number(o.total).toLocaleString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-700/50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Buyer</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Items</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Total</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id} className="border-b border-slate-100 last:border-0 dark:border-slate-700">
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{o.buyer_name}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{o.items.length}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">KSh {o.total}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${orderStatusColor(o.status)}`}>{o.status.replace(/_/g, " ")}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-400 dark:text-slate-500">{new Date(o.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {tab === "users" && (
-        <div className="rounded-2xl border border-slate-200 bg-white">
-          <div className="divide-y divide-slate-50">
-            {users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between px-5 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gula-50 text-sm font-semibold text-gula-700">
-                    {u.full_name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{u.full_name}</p>
-                    <p className="text-xs text-slate-400">{u.email}</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600">
-                  {u.role}
-                </span>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-700/50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Email</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Role</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">University</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Joined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-slate-100 last:border-0 dark:border-slate-700">
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{u.full_name}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                      u.role === "admin" ? "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400" :
+                      u.role === "seller" ? "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400" :
+                      "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                    }`}>{u.role}</span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.university || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-slate-400 dark:text-slate-500">{new Date(u.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BillboardsTab({ billboards, setBillboards }: { billboards: Billboard[]; setBillboards: React.Dispatch<React.SetStateAction<Billboard[]>> }) {
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [position, setPosition] = useState("1");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    setSaving(true);
+    setError(null);
+    const { data, error } = await supabase.from("billboards").insert({
+      title,
+      image_url: imageUrl,
+      link_url: linkUrl || null,
+      position: parseInt(position) || 1,
+      is_active: true,
+      starts_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+    }).select().single();
+    if (error) setError(error.message);
+    else {
+      setBillboards((prev) => [...prev, data as Billboard].sort((a, b) => a.position - b.position));
+      setShowForm(false);
+      setTitle(""); setImageUrl(""); setLinkUrl(""); setPosition("1");
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this billboard?")) return;
+    await supabase.from("billboards").delete().eq("id", id);
+    setBillboards((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const toggleActive = async (b: Billboard) => {
+    await supabase.from("billboards").update({ is_active: !b.is_active }).eq("id", b.id);
+    setBillboards((prev) => prev.map((p) => p.id === b.id ? { ...p, is_active: !p.is_active } : p));
+  };
+
+  const inputCls = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Billboards ({billboards.length})</h2>
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 rounded-xl bg-gula-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gula-700">
+          <ImagePlus size={16} /> Add Billboard
+        </button>
+      </div>
+
+      {billboards.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-600">
+          <p className="text-sm text-slate-400 dark:text-slate-500">No billboards yet.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {billboards.map((b) => (
+            <div key={b.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+              <div className="h-32 bg-slate-100 dark:bg-slate-700">
+                {b.image_url && <img src={b.image_url} alt={b.title} className="h-full w-full object-cover" />}
               </div>
-            ))}
-          </div>
+              <div className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{b.title}</h3>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Position {b.position}</p>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"}`}>
+                    {b.is_active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => toggleActive(b)} className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
+                    {b.is_active ? "Deactivate" : "Activate"}
+                  </button>
+                  <button onClick={() => handleDelete(b.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {showBillboardModal && (
+      {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md animate-fade-in rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Add Billboard</h3>
-              <button onClick={() => setShowBillboardModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
-                <X size={20} />
-              </button>
-            </div>
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+            <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">New Billboard</h2>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Title</label>
-                <input type="text" value={bbForm.title} onChange={(e) => setBbForm({ ...bbForm, title: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white" />
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Title</label>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} placeholder="Summer Sale" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Image URL</label>
-                <input type="text" value={bbForm.image_url} onChange={(e) => setBbForm({ ...bbForm, image_url: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white"
-                  placeholder="https://images.pexels.com/..." />
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Image URL</label>
+                <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className={inputCls} placeholder="https://..." />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Link URL (optional)</label>
-                <input type="text" value={bbForm.link_url} onChange={(e) => setBbForm({ ...bbForm, link_url: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white" />
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Link URL (optional)</label>
+                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className={inputCls} placeholder="https://..." />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Position</label>
-                <input type="number" value={bbForm.position} onChange={(e) => setBbForm({ ...bbForm, position: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white" />
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Position</label>
+                <input type="number" value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
               </div>
-            </div>
-            <div className="mt-5 flex gap-3">
-              <button onClick={() => setShowBillboardModal(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-              <button onClick={createBillboard} disabled={!bbForm.title || !bbForm.image_url}
-                className="flex-1 rounded-xl bg-gula-600 py-2.5 text-sm font-semibold text-white hover:bg-gula-700 disabled:opacity-50">Create</button>
+              {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/50 dark:text-red-400">{error}</div>}
+              <div className="flex gap-2">
+                <button onClick={handleCreate} disabled={saving || !title} className="flex-1 rounded-xl bg-gula-600 py-2.5 text-sm font-semibold text-white hover:bg-gula-700 disabled:opacity-50">
+                  {saving ? "Creating..." : "Create"}
+                </button>
+                <button onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">Cancel</button>
+              </div>
             </div>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function orderStatusColor(status: string) {
+  const map: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
+    confirmed: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
+    preparing: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400",
+    ready: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400",
+    out_for_delivery: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400",
+    delivered: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+    cancelled: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
+  };
+  return map[status] || "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300";
 }

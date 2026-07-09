@@ -1,177 +1,138 @@
 import { useEffect, useState, useRef } from "react";
-import { MessageSquare, Send, ArrowLeft } from "lucide-react";
+import { Send, MessageSquare } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
-import type { Shop, Chat, Message } from "../types";
+import type { Chat, Message } from "../types";
 
-export default function MessagesView() {
+export default function MessagesView({ shopId }: { shopId: string | null }) {
   const { profile } = useAuth();
-  const [shop, setShop] = useState<Shop | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [newMsg, setNewMsg] = useState("");
   const [loading, setLoading] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!profile) return;
-    (async () => {
-      const { data: shopData } = await supabase
-        .from("shops")
-        .select("*")
-        .eq("seller_id", profile.id)
-        .maybeSingle();
-      const s = shopData as Shop | null;
-      setShop(s);
-      if (s) {
-        const { data: chatData } = await supabase
-          .from("chats")
-          .select("*")
-          .eq("shop_id", s.id)
-          .order("last_message_at", { ascending: false });
-        setChats((chatData ?? []) as Chat[]);
-      }
-      setLoading(false);
-    })();
-  }, [profile]);
+    if (!shopId) return;
+    supabase.from("chats").select("*").eq("shop_id", shopId).order("last_message_at", { ascending: false })
+      .then(({ data }) => { if (data) setChats(data as Chat[]); setLoading(false); });
+  }, [shopId]);
 
   useEffect(() => {
     if (!activeChat) return;
-    supabase
-      .from("messages")
-      .select("*")
-      .eq("chat_id", activeChat.id)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => {
-        setMessages((data ?? []) as Message[]);
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-      });
+    supabase.from("messages").select("*").eq("chat_id", activeChat.id).order("created_at", { ascending: true })
+      .then(({ data }) => { if (data) setMessages(data as Message[]); });
   }, [activeChat]);
 
-  const sendMessage = async () => {
-    if (!activeChat || !newMessage.trim() || !profile) return;
-    const msg: Partial<Message> = {
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!newMsg.trim() || !activeChat || !profile) return;
+    setSending(true);
+    const msg: Omit<Message, "id" | "created_at"> = {
       chat_id: activeChat.id,
       sender_id: profile.id,
       sender_name: profile.full_name,
-      content: newMessage.trim(),
+      content: newMsg.trim(),
+      is_read: false,
     };
-    const { data } = await supabase.from("messages").insert(msg).select("*").single();
+    const { data } = await supabase.from("messages").insert(msg).select().single();
     if (data) {
-      setMessages([...messages, data as Message]);
-      setNewMessage("");
-      await supabase
-        .from("chats")
-        .update({ last_message: newMessage.trim(), last_message_at: new Date().toISOString() })
-        .eq("id", activeChat.id);
+      setMessages((prev) => [...prev, data as Message]);
+      setNewMsg("");
+      await supabase.from("chats").update({
+        last_message: newMsg.trim(),
+        last_message_at: new Date().toISOString(),
+      }).eq("id", activeChat.id);
     }
+    setSending(false);
   };
 
-  if (loading) return <div className="p-6 text-slate-400">Loading...</div>;
+  if (loading) return <div className="p-6 text-sm text-slate-400 dark:text-slate-500">Loading messages...</div>;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      <div className={`w-full border-r border-slate-200 bg-white md:max-w-xs ${activeChat ? "hidden md:block" : ""}`}>
-        <div className="border-b border-slate-100 px-4 py-3">
-          <h2 className="text-sm font-bold text-slate-900">Messages</h2>
-        </div>
-        <div className="overflow-y-auto">
-          {chats.length === 0 ? (
-            <div className="px-4 py-10 text-center">
-              <MessageSquare size={32} className="mx-auto mb-2 text-slate-300" />
-              <p className="text-sm text-slate-400">No conversations yet</p>
-            </div>
-          ) : (
-            chats.map((chat) => (
-              <button
-                key={chat.id}
-                onClick={() => setActiveChat(chat)}
-                className={`flex w-full items-center gap-3 border-b border-slate-50 px-4 py-3 text-left transition hover:bg-slate-50 ${
-                  activeChat?.id === chat.id ? "bg-gula-50" : ""
-                }`}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gula-100 text-sm font-semibold text-gula-700">
-                  {chat.buyer_name?.charAt(0).toUpperCase() ?? "?"}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">{chat.buyer_name}</p>
-                  <p className="truncate text-xs text-slate-400">{chat.last_message || "Start a conversation"}</p>
-                </div>
-                {chat.unread_count > 0 && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gula-600 px-1 text-[10px] font-bold text-white">
-                    {chat.unread_count}
-                  </span>
-                )}
-              </button>
-            ))
-          )}
-        </div>
+    <div className="flex h-[calc(100vh-4rem)] flex-col p-4 lg:p-6">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Messages</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Chat with your customers</p>
       </div>
 
-      <div className={`flex flex-1 flex-col bg-slate-50 ${activeChat ? "" : "hidden md:flex"}`}>
-        {activeChat ? (
-          <>
-            <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-              <button onClick={() => setActiveChat(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 md:hidden">
-                <ArrowLeft size={20} />
-              </button>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gula-100 text-sm font-semibold text-gula-700">
-                {activeChat.buyer_name?.charAt(0).toUpperCase() ?? "?"}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{activeChat.buyer_name}</p>
-                <p className="text-xs text-slate-400">{activeChat.shop_name}</p>
-              </div>
+      <div className="flex flex-1 gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        <div className={`w-full border-r border-slate-200 dark:border-slate-700 md:w-72 ${activeChat ? "hidden md:block" : ""}`}>
+          {chats.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center p-6 text-center">
+              <MessageSquare size={32} className="mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm text-slate-400 dark:text-slate-500">No conversations yet</p>
             </div>
-
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
-              {messages.map((msg) => {
-                const isOwn = msg.sender_id === profile?.id;
-                return (
-                  <div key={msg.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                      isOwn ? "bg-gula-600 text-white" : "bg-white text-slate-900 border border-slate-200"
-                    }`}>
-                      <p className="text-sm">{msg.content}</p>
-                      <p className={`mt-0.5 text-[10px] ${isOwn ? "text-gula-100" : "text-slate-400"}`}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="border-t border-slate-200 bg-white p-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Type a message..."
-                  className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
-                />
+          ) : (
+            <div className="overflow-y-auto">
+              {chats.map((c) => (
                 <button
-                  onClick={sendMessage}
-                  disabled={!newMessage.trim()}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-gula-600 text-white transition hover:bg-gula-700 disabled:opacity-50"
+                  key={c.id}
+                  onClick={() => setActiveChat(c)}
+                  className={`flex w-full items-center gap-3 border-b border-slate-100 p-3 text-left transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50 ${activeChat?.id === c.id ? "bg-gula-50 dark:bg-gula-950/30" : ""}`}
                 >
-                  <Send size={18} />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gula-600 text-sm font-bold text-white">
+                    {c.buyer_name[0]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{c.buyer_name}</p>
+                    <p className="truncate text-xs text-slate-400 dark:text-slate-500">{c.last_message}</p>
+                  </div>
+                  {c.unread_count > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gula-600 px-1.5 text-xs font-bold text-white">{c.unread_count}</span>}
                 </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={`flex flex-1 flex-col ${activeChat ? "" : "hidden md:flex"}`}>
+          {!activeChat ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <MessageSquare size={40} className="mb-3 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm text-slate-400 dark:text-slate-500">Select a conversation to start chatting</p>
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-slate-200 p-4 dark:border-slate-700">
+                <button onClick={() => setActiveChat(null)} className="mb-2 text-xs text-gula-600 hover:underline dark:text-gula-400 md:hidden">Back</button>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{activeChat.buyer_name}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{activeChat.shop_name}</p>
               </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-center">
-              <MessageSquare size={40} className="mx-auto mb-3 text-slate-300" />
-              <p className="text-sm text-slate-400">Select a conversation to start chatting</p>
-            </div>
-          </div>
-        )}
+              <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+                {messages.map((m) => {
+                  const own = m.sender_id === profile?.id;
+                  return (
+                    <div key={m.id} className={`flex ${own ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${own ? "bg-gula-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"}`}>
+                        <p>{m.content}</p>
+                        <p className={`mt-0.5 text-[10px] ${own ? "text-gula-100" : "text-slate-400"}`}>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="border-t border-slate-200 p-3 dark:border-slate-700">
+                <div className="flex gap-2">
+                  <input
+                    value={newMsg}
+                    onChange={(e) => setNewMsg(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                    placeholder="Type a message..."
+                    className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600"
+                  />
+                  <button onClick={handleSend} disabled={sending || !newMsg.trim()} className="flex items-center justify-center rounded-xl bg-gula-600 px-4 text-white hover:bg-gula-700 disabled:opacity-50">
+                    <Send size={16} />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

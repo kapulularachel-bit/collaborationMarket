@@ -1,139 +1,69 @@
 import { useEffect, useState } from "react";
-import { Truck, MapPin, Clock, CircleCheck as CheckCircle } from "lucide-react";
+import { Truck, MapPin, CircleCheck as CheckCircle, Clock, Circle as XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import { useAuth } from "../lib/AuthContext";
-import type { Shop, Delivery, DeliveryStatus } from "../types";
+import type { Delivery, DeliveryStatus } from "../types";
 
-const statusOrder: DeliveryStatus[] = ["assigned", "picked_up", "in_transit", "delivered", "failed"];
+const STATUSES: DeliveryStatus[] = ["assigned", "picked_up", "in_transit", "delivered", "failed"];
 
-export default function DeliveriesView() {
-  const { profile } = useAuth();
-  const [shop, setShop] = useState<Shop | null>(null);
+export default function DeliveriesView({ shopId }: { shopId: string | null }) {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!profile) return;
-    (async () => {
-      const { data: shopData } = await supabase
-        .from("shops")
-        .select("*")
-        .eq("seller_id", profile.id)
-        .maybeSingle();
-      const s = shopData as Shop | null;
-      setShop(s);
-      if (s) {
-        const { data: orderData } = await supabase
-          .from("orders")
-          .select("id, buyer_name, delivery_address, created_at")
-          .eq("shop_id", s.id)
-          .order("created_at", { ascending: false });
-        const orders = orderData ?? [];
-        if (orders.length > 0) {
-          const { data: delData } = await supabase
-            .from("deliveries")
-            .select("*")
-            .in("order_id", orders.map((o: { id: string }) => o.id))
-            .order("created_at", { ascending: false });
-          const mapped = ((delData ?? []) as Delivery[]).map((d) => {
-            const order = orders.find((o: { id: string }) => o.id === d.order_id) as { buyer_name: string; delivery_address: string } | undefined;
-            return {
-              ...d,
-              buyer_name: d.buyer_name || order?.buyer_name || "",
-              delivery_address: d.delivery_address || order?.delivery_address || "",
-            };
-          });
-          setDeliveries(mapped);
-        }
-      }
-      setLoading(false);
-    })();
-  }, [profile]);
+    if (!shopId) return;
+    supabase.from("deliveries").select("*").order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setDeliveries(data as Delivery[]); setLoading(false); });
+  }, [shopId]);
 
   const updateStatus = async (id: string, status: DeliveryStatus) => {
-    const updates: Partial<Delivery> = { status };
-    if (status === "picked_up") updates.picked_up_at = new Date().toISOString();
-    if (status === "delivered") updates.delivered_at = new Date().toISOString();
-    await supabase.from("deliveries").update(updates).eq("id", id);
-    setDeliveries(deliveries.map((d) => (d.id === id ? { ...d, ...updates } : d)));
+    await supabase.from("deliveries").update({ status }).eq("id", id);
+    setDeliveries((prev) => prev.map((d) => d.id === id ? { ...d, status } : d));
   };
 
-  if (loading) return <div className="p-6 text-slate-400">Loading...</div>;
+  if (loading) return <div className="p-6 text-sm text-slate-400 dark:text-slate-500">Loading deliveries...</div>;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 lg:p-6">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">Deliveries</h2>
-        <p className="text-sm text-slate-500">Track and manage order deliveries</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Deliveries</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{deliveries.length} delivery record(s)</p>
       </div>
 
       {deliveries.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-          <Truck size={40} className="mx-auto mb-3 text-slate-300" />
-          <h3 className="text-lg font-semibold text-slate-900">No deliveries yet</h3>
-          <p className="mt-1 text-sm text-slate-500">Deliveries will appear here once orders are ready for dispatch.</p>
+        <div className="rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-600">
+          <Truck size={32} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+          <p className="text-sm text-slate-400 dark:text-slate-500">No deliveries yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {deliveries.map((d) => (
-            <div key={d.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                    <Truck size={18} />
+            <div key={d.id} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${statusIcon(d.status).bg}`}>
+                    {statusIcon(d.status).icon}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{d.buyer_name || "Customer"}</p>
-                    <p className="text-xs text-slate-400">Order #{d.order_number || d.order_id.slice(0, 8)}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">Order #{d.order_number}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{d.buyer_name}</p>
                   </div>
                 </div>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                  d.status === "delivered" ? "bg-emerald-50 text-emerald-600" :
-                  d.status === "failed" ? "bg-red-50 text-red-600" :
-                  d.status === "in_transit" ? "bg-blue-50 text-blue-600" :
-                  "bg-amber-50 text-amber-600"
-                }`}>
-                  {d.status.replace("_", " ")}
-                </span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(d.status)}`}>{d.status.replace(/_/g, " ")}</span>
               </div>
-
-              <div className="mb-4 space-y-2">
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin size={14} className="mt-0.5 text-slate-400" />
-                  <span className="text-slate-600">{d.delivery_address || "No address"}</span>
-                </div>
-                {d.driver_name && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Truck size={14} className="text-slate-400" />
-                    <span className="text-slate-600">Driver: {d.driver_name}</span>
-                  </div>
-                )}
-                {d.picked_up_at && (
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <Clock size={12} /> Picked up: {new Date(d.picked_up_at).toLocaleTimeString()}
-                  </div>
-                )}
-                {d.delivered_at && (
-                  <div className="flex items-center gap-2 text-xs text-emerald-600">
-                    <CheckCircle size={12} /> Delivered: {new Date(d.delivered_at).toLocaleTimeString()}
-                  </div>
-                )}
+              <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                <p className="flex items-center gap-1.5"><MapPin size={12} /> {d.delivery_address}</p>
+                {d.driver_name && <p>Driver: {d.driver_name}</p>}
+                {d.picked_up_at && <p>Picked up: {new Date(d.picked_up_at).toLocaleString()}</p>}
+                {d.delivered_at && <p>Delivered: {new Date(d.delivered_at).toLocaleString()}</p>}
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                {statusOrder.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => updateStatus(d.id, s)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition ${
-                      d.status === s
-                        ? s === "failed" ? "bg-red-600 text-white" : "bg-gula-600 text-white"
-                        : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                    }`}
-                  >
-                    {s.replace("_", " ")}
-                  </button>
-                ))}
+              <div className="mt-3">
+                <select
+                  value={d.status}
+                  onChange={(e) => updateStatus(d.id, e.target.value as DeliveryStatus)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                >
+                  {STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+                </select>
               </div>
             </div>
           ))}
@@ -141,4 +71,26 @@ export default function DeliveriesView() {
       )}
     </div>
   );
+}
+
+function statusColor(status: string) {
+  const map: Record<string, string> = {
+    assigned: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
+    picked_up: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
+    in_transit: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400",
+    delivered: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+    failed: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
+  };
+  return map[status] || "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300";
+}
+
+function statusIcon(status: string) {
+  const map: Record<string, { icon: React.ReactNode; bg: string }> = {
+    assigned: { icon: <Clock size={16} className="text-amber-600" />, bg: "bg-amber-50 dark:bg-amber-950/40" },
+    picked_up: { icon: <Truck size={16} className="text-blue-600" />, bg: "bg-blue-50 dark:bg-blue-950/40" },
+    in_transit: { icon: <Truck size={16} className="text-indigo-600" />, bg: "bg-indigo-50 dark:bg-indigo-950/40" },
+    delivered: { icon: <CheckCircle size={16} className="text-emerald-600" />, bg: "bg-emerald-50 dark:bg-emerald-950/40" },
+    failed: { icon: <XCircle size={16} className="text-red-600" />, bg: "bg-red-50 dark:bg-red-950/40" },
+  };
+  return map[status] || map.assigned;
 }

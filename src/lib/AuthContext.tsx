@@ -21,37 +21,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) {
-      console.error("Failed to fetch profile:", error.message);
-      return;
-    }
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (error) { console.error("Failed to fetch profile:", error.message); return; }
     setProfile(data as Profile | null);
   }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
+      if (session?.user) { fetchProfile(session.user.id).finally(() => setLoading(false)); }
+      else { setLoading(false); }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session?.user) {
-        (async () => {
-          await fetchProfile(session.user.id);
-        })();
-      } else {
-        setProfile(null);
-      }
+      if (session?.user) { (async () => { await fetchProfile(session.user.id); })(); }
+      else { setProfile(null); }
     });
 
     return () => listener.subscription.unsubscribe();
@@ -63,11 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
+    const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
     return { error: error?.message ?? null };
   }, []);
 

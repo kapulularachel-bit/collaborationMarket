@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { AuthProvider, useAuth } from "./lib/AuthContext";
+import { useAuth } from "./lib/AuthContext";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
 import Onboarding from "./components/Onboarding";
-import Sidebar, { type ViewName } from "./components/Sidebar";
+import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import DashboardView from "./components/DashboardView";
 import ShopView from "./components/ShopView";
@@ -18,126 +18,88 @@ import ReviewsView from "./components/ReviewsView";
 import SettingsView from "./components/SettingsView";
 import AdminPortalView from "./components/AdminPortalView";
 
-const viewTitles: Record<ViewName, string> = {
-  dashboard: "Dashboard",
-  shop: "My Shop",
-  products: "Products",
-  orders: "Orders",
-  deliveries: "Deliveries",
-  messages: "Messages",
-  promotions: "Promotions",
-  analytics: "Analytics",
-  payouts: "Payouts",
-  reviews: "Reviews",
-  settings: "Settings",
-  admin: "Admin Portal",
-};
+export type ViewName =
+  | "dashboard" | "shop" | "products" | "orders" | "deliveries"
+  | "messages" | "promotions" | "analytics" | "payouts"
+  | "reviews" | "settings" | "admin";
 
-function AppContent() {
+export default function App() {
   const { session, profile, loading } = useAuth();
   const [view, setView] = useState<ViewName>("dashboard");
+  const [shopId, setShopId] = useState<string | null>(null);
   const [hasShop, setHasShop] = useState<boolean | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
 
+  // Role-based landing: admins go to admin portal, sellers go to dashboard
   useEffect(() => {
     if (!profile) return;
     if (profile.role === "admin") {
+      setView("admin");
       setHasShop(true);
       return;
     }
-    supabase
-      .from("shops")
-      .select("id")
-      .eq("seller_id", profile.id)
-      .maybeSingle()
-      .then(({ data }) => setHasShop(!!data));
-  }, [profile]);
+    // Seller: check if they have a shop
+    if (hasShop === null) {
+      supabase.from("shops").select("id").eq("seller_id", profile.id).maybeSingle()
+        .then(({ data }) => {
+          setShopId(data?.id ?? null);
+          setHasShop(!!data);
+        });
+    }
+  }, [profile, hasShop]);
 
+  // Keep shopId in sync when hasShop becomes true
   useEffect(() => {
-    if (!profile) return;
-    supabase
-      .from("chats")
-      .select("unread_count")
-      .eq("shop_id", profile.id)
-      .then(({ data }) => {
-        if (data) {
-          const total = data.reduce((s: number, c: { unread_count: number }) => s + c.unread_count, 0);
-          setUnreadMessages(total);
-        }
-      });
-  }, [profile]);
+    if (hasShop && !shopId && profile) {
+      supabase.from("shops").select("id").eq("seller_id", profile.id).maybeSingle()
+        .then(({ data }) => { if (data) setShopId(data.id); });
+    }
+  }, [hasShop, shopId, profile]);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gula-600 text-white">
-            <span className="text-xl font-bold">G</span>
-          </div>
-          <p className="text-sm text-slate-400">Loading...</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="text-sm text-slate-400 dark:text-slate-500">Loading...</div>
       </div>
     );
   }
 
   if (!session) return <AuthScreen />;
 
-  if (profile && profile.role === "seller" && hasShop === false) {
-    return <Onboarding onComplete={() => setHasShop(true)} />;
+  if (profile?.role !== "admin" && hasShop === false) {
+    return <Onboarding onDone={() => setHasShop(true)} />;
   }
 
-  if (!profile) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-sm text-slate-400">Setting up your profile...</p>
-      </div>
-    );
-  }
-
-  const renderView = () => {
-    switch (view) {
-      case "dashboard": return <DashboardView />;
-      case "shop": return <ShopView />;
-      case "products": return <ProductsView />;
-      case "orders": return <OrdersView />;
-      case "deliveries": return <DeliveriesView />;
-      case "messages": return <MessagesView />;
-      case "promotions": return <PromotionsView />;
-      case "analytics": return <AnalyticsView />;
-      case "payouts": return <PayoutsView />;
-      case "reviews": return <ReviewsView />;
-      case "settings": return <SettingsView />;
-      case "admin": return <AdminPortalView />;
-      default: return <DashboardView />;
-    }
-  };
+  const isAdmin = profile?.role === "admin";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      <div className={`fixed inset-0 z-40 bg-black/40 lg:hidden ${sidebarOpen ? "" : "hidden"}`} onClick={() => setSidebarOpen(false)} />
-      <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <Sidebar
-          current={view}
-          onNavigate={(v) => { setView(v); setSidebarOpen(false); }}
-          profile={profile}
-          unreadMessages={unreadMessages}
-        />
-      </div>
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
+      <Sidebar view={view} setView={setView} profile={profile} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header title={viewTitles[view]} onMenuClick={() => setSidebarOpen(true)} />
+        <Header onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto">
-          {view === "messages" ? renderView() : <div className="animate-fade-in">{renderView()}</div>}
+          {view === "admin" && isAdmin ? (
+            <AdminPortalView />
+          ) : view === "settings" ? (
+            <SettingsView />
+          ) : isAdmin ? (
+            <AdminPortalView />
+          ) : (
+            <>
+              {view === "dashboard" && <DashboardView shopId={shopId} />}
+              {view === "shop" && <ShopView shopId={shopId} />}
+              {view === "products" && <ProductsView shopId={shopId} />}
+              {view === "orders" && <OrdersView shopId={shopId} />}
+              {view === "deliveries" && <DeliveriesView shopId={shopId} />}
+              {view === "messages" && <MessagesView shopId={shopId} />}
+              {view === "promotions" && <PromotionsView shopId={shopId} />}
+              {view === "analytics" && <AnalyticsView shopId={shopId} />}
+              {view === "payouts" && <PayoutsView shopId={shopId} />}
+              {view === "reviews" && <ReviewsView shopId={shopId} />}
+            </>
+          )}
         </main>
       </div>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
   );
 }
