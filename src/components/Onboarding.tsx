@@ -52,46 +52,46 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gula-50 via-slate-50 to-emerald-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gula-50 via-slate-50 to-emerald-50 px-4 dark:from-gula-950 dark:via-slate-950 dark:to-emerald-950">
       <div className="w-full max-w-md">
         <div className="mb-6 flex items-center justify-center gap-2">
           {[0, 1].map((i) => (
             <div
               key={i}
-              className={`h-1.5 rounded-full transition-all ${i <= step ? "w-8 bg-gula-600" : "w-4 bg-slate-200"}`}
+              className={`h-1.5 rounded-full transition-all ${i <= step ? "w-8 bg-gula-600" : "w-4 bg-slate-200 dark:bg-slate-700"}`}
             />
           ))}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           {step === 0 ? (
             <>
-              <h2 className="mb-1 text-xl font-bold text-slate-900">Set up your profile</h2>
-              <p className="mb-5 text-sm text-slate-500">Tell us where you study and live.</p>
+              <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">Set up your profile</h2>
+              <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">Tell us where you study and live.</p>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">University</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">University</label>
                   <input
                     type="text"
                     value={university}
                     onChange={(e) => setUniversity(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600"
                     placeholder="University of Nairobi"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Residence / Hostel</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Residence / Hostel</label>
                   <input
                     type="text"
                     value={residence}
                     onChange={(e) => setResidence(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600"
                     placeholder="Hall 3"
                   />
                 </div>
-                {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>}
+                {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/50 dark:text-red-400">{error}</div>}
                 <button
                   onClick={handleProfileUpdate}
                   disabled={loading || !university || !residence}
@@ -103,26 +103,26 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             </>
           ) : (
             <>
-              <h2 className="mb-1 text-xl font-bold text-slate-900">Create your shop</h2>
-              <p className="mb-5 text-sm text-slate-500">Set up your storefront to start selling.</p>
+              <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">Create your shop</h2>
+              <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">Set up your storefront to start selling.</p>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Shop Name</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Shop Name</label>
                   <input
                     type="text"
                     value={shopName}
                     onChange={(e) => setShopName(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600"
                     placeholder="Brenda's Kitchen"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Category</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Category</label>
                   <select
                     value={shopCategory}
                     onChange={(e) => setShopCategory(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600"
                   >
                     <option>Food</option>
                     <option>Snacks</option>
@@ -134,16 +134,16 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Description</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Description</label>
                   <textarea
                     value={shopDescription}
                     onChange={(e) => setShopDescription(e.target.value)}
                     rows={3}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:bg-slate-600"
                     placeholder="Fresh homemade meals delivered to your hostel..."
                   />
                 </div>
-                {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>}
+                {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950/50 dark:text-red-400">{error}</div>}
                 <button
                   onClick={handleShopCreate}
                   disabled={loading || !shopName}

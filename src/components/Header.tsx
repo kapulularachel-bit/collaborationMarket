@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, Search, Menu, X } from "lucide-react";
+import { Bell, Search, Menu, Sun, Moon } from "lucide-react";
 import { useAuth } from "../lib/AuthContext";
+import { useTheme } from "../lib/ThemeContext";
 import { supabase } from "../lib/supabase";
 import type { Notification } from "../types";
 
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export default function Header({ title, onMenuClick }: HeaderProps) {
   const { profile, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotif, setShowNotif] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -48,28 +50,35 @@ export default function Header({ title, onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-center gap-3">
-        <button onClick={onMenuClick} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden">
+        <button onClick={onMenuClick} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:text-slate-400 dark:hover:bg-slate-700">
           <Menu size={20} />
         </button>
-        <h1 className="text-lg font-bold text-slate-900">{title}</h1>
+        <h1 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h1>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 md:flex">
+        <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 md:flex dark:border-slate-600 dark:bg-slate-700">
           <Search size={16} className="text-slate-400" />
           <input
             type="text"
             placeholder="Search..."
-            className="w-40 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+            className="w-40 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200 dark:placeholder:text-slate-500"
           />
         </div>
+
+        <button
+          onClick={toggleTheme}
+          className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+        >
+          {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
 
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotif(!showNotif)}
-            className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+            className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <Bell size={20} />
             {unreadCount > 0 && (
@@ -80,26 +89,26 @@ export default function Header({ title, onMenuClick }: HeaderProps) {
           </button>
 
           {showNotif && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fade-in rounded-xl border border-slate-200 bg-white shadow-lg">
-              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-900">Notifications</p>
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fade-in rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">Notifications</p>
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="text-xs font-medium text-gula-600 hover:underline">
+                  <button onClick={markAllRead} className="text-xs font-medium text-gula-600 hover:underline dark:text-gula-400">
                     Mark all read
                   </button>
                 )}
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-slate-400">No notifications</p>
+                  <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">No notifications</p>
                 ) : (
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`border-b border-slate-50 px-4 py-3 ${!n.is_read ? "bg-gula-50/50" : ""}`}
+                      className={`border-b border-slate-50 px-4 py-3 dark:border-slate-700/50 ${!n.is_read ? "bg-gula-50/50 dark:bg-gula-900/20" : ""}`}
                     >
-                      <p className="text-sm font-medium text-slate-900">{n.title}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">{n.body}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">{n.title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{n.body}</p>
                     </div>
                   ))
                 )}
@@ -111,20 +120,20 @@ export default function Header({ title, onMenuClick }: HeaderProps) {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gula-100 text-sm font-semibold text-gula-700 hover:bg-gula-200"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gula-100 text-sm font-semibold text-gula-700 hover:bg-gula-200 dark:bg-gula-900 dark:text-gula-300 dark:hover:bg-gula-800"
           >
             {profile?.full_name.charAt(0).toUpperCase()}
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-48 animate-fade-in rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-              <div className="border-b border-slate-100 px-4 py-2">
-                <p className="text-sm font-medium text-slate-900">{profile?.full_name}</p>
-                <p className="truncate text-xs text-slate-400">{profile?.email}</p>
+            <div className="absolute right-0 top-full z-50 mt-2 w-48 animate-fade-in rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+              <div className="border-b border-slate-100 px-4 py-2 dark:border-slate-700">
+                <p className="text-sm font-medium text-slate-900 dark:text-white">{profile?.full_name}</p>
+                <p className="truncate text-xs text-slate-400 dark:text-slate-500">{profile?.email}</p>
               </div>
               <button
                 onClick={() => signOut()}
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
               >
                 Sign Out
               </button>
