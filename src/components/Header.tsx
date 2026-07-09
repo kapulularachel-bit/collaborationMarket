@@ -1,123 +1,135 @@
-import React, { useState } from 'react';
-import { Bell, ChevronDown, MapPin, Calendar, FileDown } from 'lucide-react';
-import { User } from '../types';
+import { useState, useEffect, useRef } from "react";
+import { Bell, Search, Menu, X } from "lucide-react";
+import { useAuth } from "../lib/AuthContext";
+import { supabase } from "../lib/supabase";
+import type { Notification } from "../types";
 
 interface HeaderProps {
-  seller: User;
-  university: string;
-  setUniversity: (uni: string) => void;
-  systemLogs: string[];
+  title: string;
+  onMenuClick: () => void;
 }
 
-export default function Header({
-  seller,
-  university,
-  setUniversity,
-  systemLogs
-}: HeaderProps) {
-  const [showLogs, setShowLogs] = useState(false);
+export default function Header({ title, onMenuClick }: HeaderProps) {
+  const { profile, signOut } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotif, setShowNotif] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        if (data) setNotifications(data as Notification[]);
+      });
+  }, [profile]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotif(false);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const markAllRead = async () => {
+    if (!profile) return;
+    await supabase.from("notifications").update({ is_read: true }).eq("user_id", profile.id);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  };
 
   return (
-    <header className="bg-slate-950 text-white px-6 py-3.5 flex items-center justify-between sticky top-0 z-20 border-b border-slate-900">
-      {/* Left Area: Campus Selector */}
-      <div className="flex items-center gap-1.5 text-xs">
-        <div className="p-1.5 bg-emerald-950/40 text-emerald-500 rounded-lg">
-          <MapPin className="w-3.5 h-3.5" />
-        </div>
-        <div className="relative">
-          <select
-            value={university}
-            onChange={(e) => {
-              setUniversity(e.target.value);
-            }}
-            className="text-[11px] font-extrabold bg-slate-900 border border-slate-800 rounded-xl pl-2.5 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 cursor-pointer appearance-none font-sans"
-          >
-            <option value="MUBAS">MUBAS Campus</option>
-            <option value="MUST">MUST Campus</option>
-            <option value="Chancellor College">Chancellor College</option>
-            <option value="Lilongwe Uni (LUANAR)">LUANAR Campus</option>
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-        </div>
+    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+      <div className="flex items-center gap-3">
+        <button onClick={onMenuClick} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden">
+          <Menu size={20} />
+        </button>
+        <h1 className="text-lg font-bold text-slate-900">{title}</h1>
       </div>
 
-      {/* Right Area: Dashboard Controls */}
-      <div className="flex items-center gap-3">
-        {/* Date Selector */}
-        <div className="hidden lg:flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[11px] text-slate-300 font-bold">
-          <span>Jun 23 – Jun 29, 2026</span>
-          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+      <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 md:flex">
+          <Search size={16} className="text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search..."
+            className="w-40 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+          />
         </div>
 
-        {/* Comparison Selector */}
-        <div className="hidden md:block relative">
-          <select className="text-[11px] font-bold bg-slate-900 border border-slate-800 rounded-xl pl-3 pr-8 py-2 focus:outline-none text-slate-300 cursor-pointer appearance-none">
-            <option>Compare: Previous 7 days</option>
-            <option>Compare: Previous Month</option>
-            <option>Compare: Static Target</option>
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-        </div>
-
-        {/* Export Orders Button */}
-        <button 
-          onClick={() => alert("Exporting 142 orders to CSV file...")}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-xl text-[11px] font-bold text-slate-300 transition cursor-pointer"
-        >
-          <FileDown className="w-3.5 h-3.5 text-slate-400" />
-          <span>Export Orders</span>
-        </button>
-
-        {/* Bell Notifications */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setShowLogs(!showLogs)}
-            className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-xl transition text-slate-300 cursor-pointer relative flex items-center justify-center"
+            onClick={() => setShowNotif(!showNotif)}
+            className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"
           >
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-950 font-mono shrink-0">
-              3
-            </span>
+            <Bell size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gula-600 px-1 text-[9px] font-bold text-white">
+                {unreadCount}
+              </span>
+            )}
           </button>
 
-          {/* Mini overlay logs panel */}
-          {showLogs && (
-            <div className="absolute right-0 mt-2 w-80 bg-slate-950 border border-slate-800 rounded-2xl shadow-lg p-4 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-800 mb-2">
-                <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Live System Logs</h4>
-                <button 
-                  onClick={() => setShowLogs(false)}
-                  className="text-[10px] font-bold text-emerald-400"
-                >
-                  Close
-                </button>
+          {showNotif && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-fade-in rounded-xl border border-slate-200 bg-white shadow-lg">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                <p className="text-sm font-semibold text-slate-900">Notifications</p>
+                {unreadCount > 0 && (
+                  <button onClick={markAllRead} className="text-xs font-medium text-gula-600 hover:underline">
+                    Mark all read
+                  </button>
+                )}
               </div>
-              <div className="space-y-2 max-h-56 overflow-y-auto divide-y divide-slate-900">
-                {systemLogs.slice().reverse().map((log, index) => (
-                  <div key={index} className="pt-2 text-[10px] text-slate-400 leading-normal flex items-start gap-1.5 font-mono">
-                    <span className="text-emerald-500 shrink-0">★</span>
-                    <span>{log}</span>
-                  </div>
-                ))}
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm text-slate-400">No notifications</p>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`border-b border-slate-50 px-4 py-3 ${!n.is_read ? "bg-gula-50/50" : ""}`}
+                    >
+                      <p className="text-sm font-medium text-slate-900">{n.title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{n.body}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Profile Element */}
-        <div className="flex items-center gap-2 border-l border-slate-800 pl-3">
-          <div className="text-right hidden md:block">
-            <span className="text-[11px] font-black text-white block">Brenda's Bites</span>
-            <span className="text-[9px] text-slate-400 block -mt-0.5">Seller Account</span>
-          </div>
-          <div className="relative">
-            <img
-              src={seller.avatar}
-              alt="Brenda"
-              className="w-8.5 h-8.5 rounded-full object-cover border border-emerald-500"
-            />
-            <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 border border-slate-900 rounded-full animate-pulse" />
-          </div>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gula-100 text-sm font-semibold text-gula-700 hover:bg-gula-200"
+          >
+            {profile?.full_name.charAt(0).toUpperCase()}
+          </button>
+
+          {showMenu && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-48 animate-fade-in rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              <div className="border-b border-slate-100 px-4 py-2">
+                <p className="text-sm font-medium text-slate-900">{profile?.full_name}</p>
+                <p className="truncate text-xs text-slate-400">{profile?.email}</p>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

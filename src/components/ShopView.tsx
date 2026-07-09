@@ -1,183 +1,163 @@
-import React, { useState } from 'react';
-import { Store, Camera, Save, MapPin, Phone, Mail } from 'lucide-react';
-import { Shop, User } from '../types';
+import { useEffect, useState } from "react";
+import { Store, Save, Plus } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../lib/AuthContext";
+import type { Shop } from "../types";
 
-interface ShopViewProps {
-  shop: Shop;
-  seller: User;
-  onUpdateShop: (updatedFields: Partial<Shop>) => void;
-  onUpdateSeller: (updatedFields: Partial<User>) => void;
-}
-
-export default function ShopView({
-  shop,
-  seller,
-  onUpdateShop,
-  onUpdateSeller
-}: ShopViewProps) {
-  const [shopName, setShopName] = useState(shop.name);
-  const [description, setDescription] = useState(shop.description);
-  const [location, setLocation] = useState(shop.location);
-  const [residence, setResidence] = useState(seller.residence);
-  const [contact, setContact] = useState(seller.contact);
-  const [email, setEmail] = useState(seller.email);
-
+export default function ShopView() {
+  const { profile } = useAuth();
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState({ name: "", description: "", category: "Food", university: "", logo_url: "", banner_url: "" });
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from("shops")
+      .select("*")
+      .eq("seller_id", profile.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const s = data as Shop | null;
+        setShop(s);
+        if (s) {
+          setForm({
+            name: s.name,
+            description: s.description,
+            category: s.category,
+            university: s.university,
+            logo_url: s.logo_url ?? "",
+            banner_url: s.banner_url ?? "",
+          });
+        }
+        setLoading(false);
+      });
+  }, [profile]);
+
+  const handleSave = async () => {
+    if (!shop) return;
     setSaving(true);
-    
-    setTimeout(() => {
-      onUpdateShop({
-        name: shopName,
-        description,
-        location
-      });
-      onUpdateSeller({
-        residence,
-        contact,
-        email
-      });
-      setSaving(false);
-      alert("Shop profile updated successfully!");
-    }, 800);
+    setSaved(false);
+    await supabase
+      .from("shops")
+      .update({
+        name: form.name,
+        description: form.description,
+        category: form.category,
+        university: form.university,
+        logo_url: form.logo_url || null,
+        banner_url: form.banner_url || null,
+      })
+      .eq("id", shop.id);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
+  if (loading) return <div className="p-6 text-slate-400">Loading...</div>;
+
+  if (!shop) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+          <Store size={40} className="mx-auto mb-3 text-slate-300" />
+          <h3 className="text-lg font-semibold text-slate-900">No shop yet</h3>
+          <p className="mt-1 text-sm text-slate-500">Complete onboarding to create your shop.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-6">
-      {/* Header */}
-      <div className="border-b border-slate-100 dark:border-slate-800 pb-5">
-        <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Store className="w-5 h-5 text-[#2E7D32]" />
-          My Campus Shop Profile
-        </h2>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Customize shop details, logo, cover imagery, and hostel delivery pickup configurations</p>
+    <div className="space-y-6 p-6">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">My Shop</h2>
+        <p className="text-sm text-slate-500">Manage your storefront details.</p>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* Cover Graphic Frame */}
-        <div className="relative h-44 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 group">
-          <img
-            src={shop.coverImage}
-            alt="Cover"
-            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-          />
-          <div className="absolute inset-0 bg-black/20" />
-          <button
-            type="button"
-            className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-1.5 transition cursor-pointer"
-            onClick={() => alert("Image upload simulation active. Selected photo is configured!")}
-          >
-            <Camera className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-            <span>Change Cover</span>
-          </button>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="h-32 bg-gradient-to-r from-gula-500 to-emerald-600" />
+        <div className="px-6 pb-6">
+          <div className="-mt-10 mb-4 flex items-end gap-4">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white bg-gula-100 text-2xl font-bold text-gula-700">
+              {form.name.charAt(0).toUpperCase() || "S"}
+            </div>
+            <div className="pb-2">
+              <h3 className="text-lg font-bold text-slate-900">{form.name || "Unnamed Shop"}</h3>
+              <p className="text-sm text-slate-500">{form.category} · {form.university}</p>
+            </div>
+          </div>
 
-          {/* Logo Frame overlays bottom left */}
-          <div className="absolute bottom-4 left-4 flex items-end gap-3.5">
-            <div className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-white dark:border-slate-800 shadow bg-white dark:bg-slate-900 group-avatar">
-              <img
-                src={shop.logo}
-                alt="Logo"
-                className="w-full h-full object-cover"
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Shop Name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
               />
-              <button
-                type="button"
-                className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition duration-200"
-                onClick={() => alert("Image upload simulation active. Selected logo updated!")}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Category</label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
               >
-                <Camera className="w-4 h-4 text-white" />
-              </button>
+                <option>Food</option>
+                <option>Snacks</option>
+                <option>Drinks</option>
+                <option>Stationery</option>
+                <option>Electronics</option>
+                <option>Fashion</option>
+                <option>Other</option>
+              </select>
             </div>
-            <div className="text-white drop-shadow-md mb-1">
-              <h3 className="font-extrabold text-sm">{shop.name}</h3>
-              <p className="text-[10px] font-bold uppercase tracking-wide">University Verified Seller ✓</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Inputs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-          {/* Left Column */}
-          <div className="space-y-4">
             <div>
-              <label className="block text-slate-500 dark:text-slate-400 font-extrabold mb-1.5">Shop Business Name</label>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">University</label>
               <input
                 type="text"
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
-                className="w-full border border-slate-200 dark:border-slate-800 focus:border-[#2E7D32] rounded-xl p-3 focus:outline-none transition font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900"
-                required
+                value={form.university}
+                onChange={(e) => setForm({ ...form, university: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
               />
             </div>
-
             <div>
-              <label className="block text-slate-500 dark:text-slate-400 font-extrabold mb-1.5">Shop Slogan / Description</label>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Logo URL (optional)</label>
+              <input
+                type="text"
+                value={form.logo_url}
+                onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
+                placeholder="https://..."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Description</label>
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                className="w-full border border-slate-200 dark:border-slate-800 focus:border-[#2E7D32] rounded-xl p-3 focus:outline-none transition font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 leading-relaxed"
-                required
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={3}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
               />
             </div>
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-slate-500 dark:text-slate-400 font-extrabold mb-1.5 flex items-center gap-1">
-                <MapPin className="w-4 h-4 text-slate-400" /> Physical Location (Hostel Block/Room)
-              </label>
-              <input
-                type="text"
-                value={residence}
-                onChange={(e) => setResidence(e.target.value)}
-                className="w-full border border-slate-200 dark:border-slate-800 focus:border-[#2E7D32] rounded-xl p-3 focus:outline-none transition font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-500 dark:text-slate-400 font-extrabold mb-1.5 flex items-center gap-1">
-                <Phone className="w-4 h-4 text-slate-400" /> Contact Phone Number
-              </label>
-              <input
-                type="text"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                className="w-full border border-slate-200 dark:border-slate-800 focus:border-[#2E7D32] rounded-xl p-3 focus:outline-none transition font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-500 dark:text-slate-400 font-extrabold mb-1.5 flex items-center gap-1">
-                <Mail className="w-4 h-4 text-slate-400" /> Student Verification Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-slate-200 dark:border-slate-800 focus:border-[#2E7D32] rounded-xl p-3 focus:outline-none transition font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900"
-                required
-              />
-            </div>
+          <div className="mt-5 flex items-center gap-3">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 rounded-xl bg-gula-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gula-700 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : <><Save size={16} /> Save Changes</>}
+            </button>
+            {saved && <span className="text-sm text-emerald-600">Saved!</span>}
           </div>
         </div>
-
-        {/* Action Button */}
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-[#2E7D32] hover:bg-emerald-700 disabled:bg-emerald-600/60 text-white text-xs font-bold px-6 py-2.5 rounded-xl flex items-center gap-2 shadow transition cursor-pointer"
-          >
-            <Save className="w-4.5 h-4.5" />
-            {saving ? "Saving Changes..." : "Save Profile Details"}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   );
 }

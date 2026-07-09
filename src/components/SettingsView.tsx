@@ -1,119 +1,117 @@
-import React, { useState } from 'react';
-import { Settings, Shield, Bell, Truck, ToggleLeft, ToggleRight, Radio } from 'lucide-react';
+import { useState } from "react";
+import { Save, User, Bell, Shield } from "lucide-react";
+import { useAuth } from "../lib/AuthContext";
+import { supabase } from "../lib/supabase";
 
 export default function SettingsView() {
-  const [shopOpen, setShopOpen] = useState(true);
-  const [soundNotify, setSoundNotify] = useState(true);
-  const [emailNotify, setEmailNotify] = useState(false);
-  const [courierDispatch, setCourierDispatch] = useState(true);
+  const { profile, refreshProfile, signOut } = useAuth();
+  const [form, setForm] = useState({
+    full_name: profile?.full_name ?? "",
+    phone: profile?.phone ?? "",
+    university: profile?.university ?? "",
+    residence: profile?.residence ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (!profile) return;
+    setSaving(true);
+    await supabase
+      .from("profiles")
+      .update({
+        full_name: form.full_name,
+        phone: form.phone,
+        university: form.university,
+        residence: form.residence,
+      })
+      .eq("id", profile.id);
+    await refreshProfile();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-6 text-xs">
-      {/* Header */}
-      <div className="border-b border-slate-100 dark:border-slate-800 pb-5">
-        <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Settings className="w-5 h-5 text-[#2E7D32]" />
-          Store Preferences & Settings
-        </h2>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Configure active configurations, sound alerts, courier assignments, and notification lists</p>
+    <div className="space-y-6 p-6">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Settings</h2>
+        <p className="text-sm text-slate-500">Manage your account and preferences</p>
       </div>
 
-      <div className="space-y-6">
-        {/* Shop operational status toggle */}
-        <div className="bg-slate-50/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 p-4.5 rounded-2xl flex items-center justify-between">
-          <div className="space-y-1 pr-4">
-            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-              <Radio className={`w-4.5 h-4.5 ${shopOpen ? "text-[#2E7D32] animate-pulse" : "text-slate-400"}`} />
-              Accepting Campus Orders
-            </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal max-w-[380px]">
-              When enabled, your menu items are visible and students can place instant orders. When disabled, your store appears as "Closed" on the client app.
-            </p>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <User size={18} className="text-gula-600" />
+          <h3 className="text-sm font-semibold text-slate-900">Profile Information</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Full Name</label>
+            <input type="text" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20" />
           </div>
-
-          <button
-            onClick={() => {
-              setShopOpen(!shopOpen);
-              alert(shopOpen ? "Your campus shop is now CLOSED to new orders." : "Your campus shop is now LIVE and accepting orders!");
-            }}
-            className="shrink-0 transition active:scale-95 cursor-pointer"
-          >
-            {shopOpen ? (
-              <ToggleRight className="w-12 h-12 text-[#2E7D32]" />
-            ) : (
-              <ToggleLeft className="w-12 h-12 text-slate-400" />
-            )}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Email</label>
+            <input type="email" value={profile?.email ?? ""} disabled
+              className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-400" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Phone</label>
+            <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20"
+              placeholder="+254..." />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">University</label>
+            <input type="text" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Residence</label>
+            <input type="text" value={form.residence} onChange={(e) => setForm({ ...form, residence: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-gula-500 focus:bg-white focus:ring-2 focus:ring-gula-500/20" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Role</label>
+            <input type="text" value={profile?.role ?? ""} disabled className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm capitalize text-slate-400" />
+          </div>
+        </div>
+        <div className="mt-5 flex items-center gap-3">
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 rounded-xl bg-gula-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gula-700 disabled:opacity-50">
+            {saving ? "Saving..." : <><Save size={16} /> Save Changes</>}
           </button>
+          {saved && <span className="text-sm text-emerald-600">Saved!</span>}
         </div>
+      </div>
 
-        {/* Setting Groups */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Notifications config */}
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 space-y-4">
-            <h4 className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-              <Bell className="w-4 h-4 text-purple-600" /> Notifications & Sound Alerts
-            </h4>
-
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white">New Order Audio Ping</h5>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Play sound chimes when a student places a purchase</p>
-                </div>
-                <button onClick={() => setSoundNotify(!soundNotify)} className="cursor-pointer">
-                  {soundNotify ? <ToggleRight className="w-10 h-10 text-[#2E7D32]" /> : <ToggleLeft className="w-10 h-10 text-slate-400" />}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white">Push Notifications</h5>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Receive browser desktop notifications in background</p>
-                </div>
-                <button onClick={() => setEmailNotify(!emailNotify)} className="cursor-pointer">
-                  {emailNotify ? <ToggleRight className="w-10 h-10 text-[#2E7D32]" /> : <ToggleLeft className="w-10 h-10 text-slate-400" />}
-                </button>
-              </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <Bell size={18} className="text-gula-600" />
+          <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+        </div>
+        <div className="space-y-3">
+          {["New orders", "Delivery updates", "Customer messages", "Promotion alerts"].map((item) => (
+            <div key={item} className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+              <span className="text-sm text-slate-600">{item}</span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" defaultChecked className="peer sr-only" />
+                <div className="h-5 w-9 rounded-full bg-slate-300 transition peer-checked:bg-gula-600" />
+                <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-4" />
+              </label>
             </div>
-          </div>
-
-          {/* Logistics & Security */}
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 space-y-4">
-            <h4 className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-              <Truck className="w-4 h-4 text-blue-600" /> Logistics & Courier Dispatch
-            </h4>
-
-            <div className="space-y-3.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white">Auto-Assign Courier Run</h5>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Auto-delegate ready orders to verified student runners</p>
-                </div>
-                <button onClick={() => setCourierDispatch(!courierDispatch)} className="cursor-pointer">
-                  {courierDispatch ? <ToggleRight className="w-10 h-10 text-[#2E7D32]" /> : <ToggleLeft className="w-10 h-10 text-slate-400" />}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                <div>
-                  <h5 className="font-extrabold text-[#2E7D32] flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5" /> GULA Trust Level
-                  </h5>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Your store is fully verified with premium merchant status.</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
+      </div>
 
-        <div className="pt-3 flex justify-end">
-          <button
-            onClick={() => alert("Settings configuration saved successfully!")}
-            className="bg-[#2E7D32] hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl transition cursor-pointer"
-          >
-            Save Settings Preferences
-          </button>
+      <div className="rounded-2xl border border-red-100 bg-red-50/50 p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <Shield size={18} className="text-red-500" />
+          <h3 className="text-sm font-semibold text-slate-900">Danger Zone</h3>
         </div>
+        <button onClick={() => signOut()} className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+          Sign Out
+        </button>
       </div>
     </div>
   );

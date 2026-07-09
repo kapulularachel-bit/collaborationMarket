@@ -1,94 +1,81 @@
-import React from 'react';
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  ClipboardList, 
-  Truck, 
-  MessageSquare, 
-  Tag, 
-  BarChart3, 
-  Store, 
-  Wallet, 
-  Star, 
-  Settings, 
-  Headphones,
-  ChevronDown,
-  Percent
-} from 'lucide-react';
+import { LayoutDashboard, Store, Package, ClipboardList, Truck, MessageSquare, Tag, ChartBar as BarChart3, Wallet, Star, Settings, Shield } from "lucide-react";
+import type { Profile } from "../types";
+
+export type ViewName =
+  | "dashboard"
+  | "shop"
+  | "products"
+  | "orders"
+  | "deliveries"
+  | "messages"
+  | "promotions"
+  | "analytics"
+  | "payouts"
+  | "reviews"
+  | "settings"
+  | "admin";
 
 interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  ordersBadgeCount: number;
-  deliveriesBadgeCount: number;
-  messagesBadgeCount: number;
-  setIsCreatePromotionOpen: (open: boolean) => void;
+  current: ViewName;
+  onNavigate: (view: ViewName) => void;
+  profile: Profile;
+  unreadMessages: number;
 }
 
-export default function Sidebar({
-  activeTab,
-  setActiveTab,
-  ordersBadgeCount,
-  deliveriesBadgeCount,
-  messagesBadgeCount,
-  setIsCreatePromotionOpen
-}: SidebarProps) {
+const sellerNav = [
+  { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
+  { id: "shop" as const, label: "My Shop", icon: Store },
+  { id: "products" as const, label: "Products", icon: Package },
+  { id: "orders" as const, label: "Orders", icon: ClipboardList },
+  { id: "deliveries" as const, label: "Deliveries", icon: Truck },
+  { id: "messages" as const, label: "Messages", icon: MessageSquare, badge: true },
+  { id: "promotions" as const, label: "Promotions", icon: Tag },
+  { id: "analytics" as const, label: "Analytics", icon: BarChart3 },
+  { id: "payouts" as const, label: "Payouts", icon: Wallet },
+  { id: "reviews" as const, label: "Reviews", icon: Star },
+  { id: "settings" as const, label: "Settings", icon: Settings },
+];
 
-  // Links corresponding to the 11 sidebar tabs in the screenshot
-  const menuItems = [
-    { name: 'Dashboard', icon: LayoutDashboard },
-    { name: 'Products', icon: ShoppingBag },
-    { name: 'Orders', icon: ClipboardList, badge: ordersBadgeCount, badgeColor: 'bg-emerald-600' },
-    { name: 'Deliveries', icon: Truck, badge: deliveriesBadgeCount, badgeColor: 'bg-blue-600' },
-    { name: 'Messages', icon: MessageSquare, badge: messagesBadgeCount, badgeColor: 'bg-red-500' },
-    { name: 'Promotions', icon: Tag },
-    { name: 'Analytics', icon: BarChart3 },
-    { name: 'Shop', icon: Store },
-    { name: 'Payouts', icon: Wallet },
-    { name: 'Reviews', icon: Star },
-    { name: 'Settings', icon: Settings }
-  ];
+export default function Sidebar({ current, onNavigate, profile, unreadMessages }: SidebarProps) {
+  const navItems = profile.role === "admin"
+    ? [
+        { id: "admin" as const, label: "Admin Portal", icon: Shield },
+        { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
+        { id: "settings" as const, label: "Settings", icon: Settings },
+      ]
+    : sellerNav;
 
   return (
-    <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-850 shrink-0 hidden lg:flex flex-col h-screen sticky top-0">
-      {/* Sidebar Header Dropdown */}
-      <div className="p-4.5 border-b border-slate-100 dark:border-slate-850 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8.5 h-8.5 bg-[#2E7D32] rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-700/25">
-            <span className="text-base">🥗</span>
-          </div>
-          <div>
-            <span className="font-extrabold text-slate-900 dark:text-white text-[13px] tracking-wide block">GULA Seller</span>
-            <span className="text-[10px] text-[#2E7D32] dark:text-emerald-400 font-black uppercase tracking-wider block">MUBAS Campus</span>
-          </div>
+    <aside className="flex h-full w-60 flex-col border-r border-slate-200 bg-white">
+      <div className="flex h-16 items-center gap-2.5 border-b border-slate-200 px-5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gula-600 text-white">
+          <span className="text-lg font-bold">G</span>
         </div>
-        <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+        <div>
+          <p className="text-sm font-bold text-slate-900">GULA</p>
+          <p className="text-[10px] text-slate-400">Marketplace</p>
+        </div>
       </div>
 
-      {/* Navigation list */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-        {menuItems.map((item) => {
-          const isActive = activeTab === item.name;
-          const IconComponent = item.icon;
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = current === item.id;
           return (
             <button
-              key={item.name}
-              onClick={() => setActiveTab(item.name)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                isActive
-                  ? "bg-emerald-50 dark:bg-emerald-950/35 text-[#2E7D32] dark:text-emerald-400"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white"
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                active
+                  ? "bg-gula-50 text-gula-700"
+                  : "text-slate-600 hover:bg-slate-50"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <IconComponent className={`w-4.5 h-4.5 shrink-0 ${isActive ? "text-[#2E7D32] dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`} />
-                <span>{item.name}</span>
-              </div>
-              
-              {/* Optional Sidebar Badges */}
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className={`${item.badgeColor || "bg-emerald-600"} text-white text-[9.5px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center font-mono shrink-0 scale-90`}>
-                  {item.badge}
+              <Icon size={18} className={active ? "text-gula-600" : "text-slate-400"} />
+              <span className="flex-1 text-left">{item.label}</span>
+              {"badge" in item && item.badge && unreadMessages > 0 && (
+                <span className="rounded-full bg-gula-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {unreadMessages}
                 </span>
               )}
             </button>
@@ -96,61 +83,15 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Extra Widget Cards inside Sidebar */}
-      <div className="p-4 border-t border-slate-100 dark:border-slate-850 space-y-4 bg-slate-50/50 dark:bg-slate-950/30">
-        {/* Store Health circular chart gauge */}
-        <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl flex items-center gap-3.5 shadow-2xs">
-          {/* Circular ring */}
-          <div className="relative w-11 h-11 shrink-0 flex items-center justify-center">
-            <svg className="w-full h-full transform -rotate-90">
-              <circle cx="22" cy="22" r="18" fill="transparent" stroke="currentColor" className="text-slate-100 dark:text-slate-800" strokeWidth="3.5" />
-              <circle 
-                cx="22" 
-                cy="22" 
-                r="18" 
-                fill="transparent" 
-                stroke="#2E7D32" 
-                strokeWidth="3.5" 
-                strokeDasharray={2 * Math.PI * 18}
-                strokeDashoffset={(2 * Math.PI * 18) * (1 - 0.92)}
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className="absolute text-[10px] font-black text-slate-800 dark:text-slate-200 font-mono">92%</span>
+      <div className="border-t border-slate-200 p-3">
+        <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gula-100 text-sm font-semibold text-gula-700">
+            {profile.full_name.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <h4 className="text-[11px] font-black text-slate-900 dark:text-white leading-tight">Store Health: Excellent</h4>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Keep up the good work!</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-900">{profile.full_name}</p>
+            <p className="truncate text-[10px] capitalize text-slate-400">{profile.role}</p>
           </div>
-        </div>
-
-        {/* Create Promotion Box */}
-        <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl space-y-2 shadow-2xs">
-          <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 flex items-center gap-1">
-            <Percent className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            Grow your business
-          </h4>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
-            Boost your sales with promotions and reach more students.
-          </p>
-          <button
-            onClick={() => setIsCreatePromotionOpen(true)}
-            className="w-full bg-[#2E7D32] hover:bg-emerald-700 text-white text-[10.5px] font-black py-2 rounded-xl text-center shadow-xs transition cursor-pointer"
-          >
-            Create Promotion
-          </button>
-          <button 
-            onClick={() => alert("Help documentation: Promotions let you set customized percentage-off discounts across your catalog which show up prominently in GULA's homepage slider carousels!")}
-            className="text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 block text-center font-bold"
-          >
-            Learn more
-          </button>
-        </div>
-
-        {/* Sidebar Help desk Link */}
-        <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 justify-center font-bold">
-          <Headphones className="w-3.5 h-3.5" />
-          <span>Need help? Visit our Help Center</span>
         </div>
       </div>
     </aside>
