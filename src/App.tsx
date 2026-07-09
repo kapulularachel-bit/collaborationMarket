@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
-import { ThemeProvider } from "./lib/ThemeContext";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./components/AuthScreen";
 import Onboarding from "./components/Onboarding";
@@ -20,9 +19,18 @@ import SettingsView from "./components/SettingsView";
 import AdminPortalView from "./components/AdminPortalView";
 
 const viewTitles: Record<ViewName, string> = {
-  dashboard: "Dashboard", shop: "My Shop", products: "Products", orders: "Orders",
-  deliveries: "Deliveries", messages: "Messages", promotions: "Promotions",
-  analytics: "Analytics", payouts: "Payouts", reviews: "Reviews", settings: "Settings", admin: "Admin Portal",
+  dashboard: "Dashboard",
+  shop: "My Shop",
+  products: "Products",
+  orders: "Orders",
+  deliveries: "Deliveries",
+  messages: "Messages",
+  promotions: "Promotions",
+  analytics: "Analytics",
+  payouts: "Payouts",
+  reviews: "Reviews",
+  settings: "Settings",
+  admin: "Admin Portal",
 };
 
 function AppContent() {
@@ -34,23 +42,40 @@ function AppContent() {
 
   useEffect(() => {
     if (!profile) return;
-    if (profile.role === "admin") { setHasShop(true); return; }
-    supabase.from("shops").select("id").eq("seller_id", profile.id).maybeSingle().then(({ data }) => setHasShop(!!data));
+    if (profile.role === "admin") {
+      setHasShop(true);
+      return;
+    }
+    supabase
+      .from("shops")
+      .select("id")
+      .eq("seller_id", profile.id)
+      .maybeSingle()
+      .then(({ data }) => setHasShop(!!data));
   }, [profile]);
 
   useEffect(() => {
     if (!profile) return;
-    supabase.from("chats").select("unread_count").eq("shop_id", profile.id).then(({ data }) => {
-      if (data) { const total = data.reduce((s: number, c: { unread_count: number }) => s + c.unread_count, 0); setUnreadMessages(total); }
-    });
+    supabase
+      .from("chats")
+      .select("unread_count")
+      .eq("shop_id", profile.id)
+      .then(({ data }) => {
+        if (data) {
+          const total = data.reduce((s: number, c: { unread_count: number }) => s + c.unread_count, 0);
+          setUnreadMessages(total);
+        }
+      });
   }, [profile]);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gula-600 text-white"><span className="text-xl font-bold">G</span></div>
-          <p className="text-sm text-slate-400 dark:text-slate-500">Loading...</p>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gula-600 text-white">
+            <span className="text-xl font-bold">G</span>
+          </div>
+          <p className="text-sm text-slate-400">Loading...</p>
         </div>
       </div>
     );
@@ -63,7 +88,11 @@ function AppContent() {
   }
 
   if (!profile) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950"><p className="text-sm text-slate-400 dark:text-slate-500">Setting up your profile...</p></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-sm text-slate-400">Setting up your profile...</p>
+      </div>
+    );
   }
 
   const renderView = () => {
@@ -85,10 +114,15 @@ function AppContent() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <div className={`fixed inset-0 z-40 bg-black/40 lg:hidden ${sidebarOpen ? "" : "hidden"}`} onClick={() => setSidebarOpen(false)} />
       <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <Sidebar current={view} onNavigate={(v) => { setView(v); setSidebarOpen(false); }} profile={profile} unreadMessages={unreadMessages} />
+        <Sidebar
+          current={view}
+          onNavigate={(v) => { setView(v); setSidebarOpen(false); }}
+          profile={profile}
+          unreadMessages={unreadMessages}
+        />
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header title={viewTitles[view]} onMenuClick={() => setSidebarOpen(true)} />
@@ -102,10 +136,8 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
