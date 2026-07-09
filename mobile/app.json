@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "GULA Marketplace",
+    "slug": "gula-mobile",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "scheme": "gula",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "mw.gula.app"
+    },
+    "android": {
+      "package": "mw.gula.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
